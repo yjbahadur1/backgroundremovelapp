@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPMG ClearCut Studio — AI Headshot Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+// ── Offline-first script loader ──
+// Caches JSZip and FileSaver in localStorage so they work offline after first load
+(function(){
+  const CACHE_KEY_ZIP = 'kcc_jszip_3101';
+  const CACHE_KEY_FS  = 'kcc_filesaver_205';
+  const ZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  const FS_URL  = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
+  function execScript(src){ const s=document.createElement('script'); s.textContent=src; document.head.appendChild(s); }
+  function loadAndCache(url, key, cb){
+    const cached = localStorage.getItem(key);
+    if(cached){ execScript(cached); cb(); return; }
+    fetch(url).then(r=>r.text()).then(src=>{ 
+      try{ localStorage.setItem(key, src); }catch(e){}
+      execScript(src); cb();
+    }).catch(()=>{ console.warn('Could not load', url, '- ZIP download may be unavailable'); cb(); });
+  }
+  window.__libsReady = false;
+  let loaded = 0;
+  function onLoaded(){ if(++loaded === 2){ window.__libsReady = true; } }
+  loadAndCache(ZIP_URL, CACHE_KEY_ZIP, onLoaded);
+  loadAndCache(FS_URL,  CACHE_KEY_FS,  onLoaded);
+})();
+</script>
+<style>
+/* ── KPMG Brand Palette ──────────────────────────────────── */
+:root{
+  /* KPMG official colors */
+  --kpmg-blue:#00338D;
+  --kpmg-light:#0091DA;
+  --kpmg-cobalt:#1E49E2;
+  --kpmg-violet:#6D2077;
+  --kpmg-green:#00B050;
+  /* UI surfaces — dark theme with KPMG blue tones */
+  --bg:#05080f;
+  --sur:#0a0f1c;
+  --pan:#0e1628;
+  --bdr:#1a2540;
+  --txt:#e4eaf5;
+  --mut:#4a5878;
+  --acc:var(--kpmg-light);
+  --ag:rgba(0,145,218,.12);
+  --a2:#0091DA;
+  --ok:#00B050;
+  --er:#E02020;
+  --wa:#F5A623;
+  --fd:'Open Sans',sans-serif;
+  --fb:'Open Sans',sans-serif;
+  --fm:'DM Mono',monospace;
+  --r:6px;--rl:10px;--tr:130ms ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:13px;line-height:1.5}
+
+/* MODEL BAR */
+#mbar{position:fixed;top:0;left:0;right:0;z-index:900;background:#03142e;border-bottom:1px solid rgba(0,145,218,.25);padding:7px 16px;display:flex;align-items:center;gap:10px;font-size:12px;color:#90c8f0;transition:transform .4s,opacity .4s}
+#mbar.gone{transform:translateY(-110%);opacity:0;pointer-events:none}
+.mspin{width:13px;height:13px;border:2px solid rgba(0,145,218,.2);border-top-color:#0091DA;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+#mbar code{background:rgba(0,145,218,.15);border-radius:3px;padding:0 5px;font-family:var(--fm);color:#0091DA}
+#mpct{font-family:var(--fm);color:#0091DA}
+#mbar.err-bar{background:#1a0505;border-color:rgba(224,32,32,.3);color:#ffaaaa}
+
+/* SCREENS */
+.scr{display:none;width:100%;height:100vh}
+.scr.on{display:flex}
+#ss{flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+#ss::before{content:'';position:absolute;width:800px;height:800px;background:radial-gradient(circle,rgba(0,51,141,.18) 0%,transparent 60%);top:-300px;left:-200px;pointer-events:none}
+#ss::after{content:'';position:absolute;width:600px;height:600px;background:radial-gradient(circle,rgba(0,145,218,.08) 0%,transparent 65%);bottom:-100px;right:-60px;pointer-events:none}
+
+/* CARD */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:40px 44px;width:500px;z-index:1;box-shadow:0 32px 72px rgba(0,0,0,.6)}
+/* KPMG logo strip at top of card */
+.kpmg-strip{display:flex;align-items:center;gap:14px;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--bdr)}
+.kpmg-logo-mark{display:flex;align-items:center;gap:0;flex-shrink:0}
+.kpmg-logo-mark span{display:inline-block;width:11px;height:36px;border-radius:2px;margin-right:3px}
+.kpmg-logo-mark .k1{background:#00338D}
+.kpmg-logo-mark .k2{background:#0091DA;height:24px;margin-top:12px}
+.kpmg-logo-mark .k3{background:#00338D}
+.kpmg-logo-mark .k4{background:#0091DA;height:24px;margin-top:0}
+.kpmg-wordmark{font-family:var(--fd);font-size:26px;font-weight:800;letter-spacing:2px;color:var(--txt)}
+.kpmg-tagline{font-size:10px;color:var(--mut);letter-spacing:.5px;margin-top:1px}
+.app-name{font-size:11px;color:var(--kpmg-light);font-weight:600;letter-spacing:.8px;text-transform:uppercase;padding:3px 8px;background:rgba(0,145,218,.1);border-radius:4px;border:1px solid rgba(0,145,218,.2)}
+h1{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:-.2px;margin-bottom:4px;color:var(--txt)}
+.sub{color:var(--mut);font-size:12px;margin-bottom:24px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.fi{background:var(--pan);border:1px solid var(--bdr);border-radius:var(--r);color:var(--txt);font-family:var(--fm);font-size:14px;padding:10px 12px;outline:none;transition:border-color var(--tr);width:100%}
+.fi:focus{border-color:var(--kpmg-light);box-shadow:0 0 0 3px rgba(0,145,218,.1)}
+.plab{font-size:10px;color:var(--mut);margin-bottom:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.presets{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:28px}
+.pbtn{background:var(--pan);border:1px solid var(--bdr);border-radius:5px;color:var(--mut);cursor:pointer;font-family:var(--fb);font-size:10px;padding:5px 10px;transition:all var(--tr);font-weight:500}
+.pbtn:hover{border-color:var(--kpmg-light);color:var(--kpmg-light);background:var(--ag)}
+.bp{background:var(--kpmg-blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:var(--fb);font-size:13px;font-weight:600;padding:13px 20px;width:100%;transition:all var(--tr);display:flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.3px}
+.bp:hover:not(:disabled){background:var(--kpmg-light);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,51,141,.4)}
+.bp:disabled{opacity:.35;cursor:not-allowed}
+.bs{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);color:var(--txt);cursor:pointer;font-family:var(--fb);font-size:13px;padding:13px 16px;transition:all var(--tr);font-weight:500}
+.bs:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+
+/* UPLOAD SCREEN — clean, spacious */
+#su{flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.ucon{width:620px;max-width:95vw}
+.upload-header{margin-bottom:32px}
+.upload-header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.upload-header-top h2{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:-.2px}
+.upload-meta{color:var(--mut);font-size:12px}
+.upload-meta strong{color:var(--kpmg-light);font-family:var(--fm)}
+.bk{background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--mut);cursor:pointer;font-size:11px;padding:6px 13px;transition:all var(--tr);font-family:var(--fb)}
+.bk:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.dz{background:var(--sur);border:2px dashed var(--bdr);border-radius:var(--rl);cursor:pointer;padding:52px 40px;text-align:center;transition:all var(--tr);position:relative}
+.dz.over,.dz:hover{border-color:var(--kpmg-light);background:rgba(0,145,218,.05)}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{width:52px;height:52px;margin:0 auto 16px;background:rgba(0,51,141,.2);border-radius:14px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,145,218,.2)}
+.dt{font-weight:600;font-size:15px;margin-bottom:4px;color:var(--txt)}
+.ds{color:var(--mut);font-size:12px}
+.flist{margin-top:14px;display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
+.fi2{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);display:flex;align-items:center;gap:10px;padding:9px 12px;transition:border-color var(--tr)}
+.fi2:hover{border-color:var(--bdr)}
+.fth{width:34px;height:34px;border-radius:5px;object-fit:cover;flex-shrink:0}
+.fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500}
+.fsz{color:var(--mut);font-family:var(--fm);font-size:10px;white-space:nowrap}
+.frm{background:none;border:none;color:var(--mut);cursor:pointer;font-size:14px;padding:3px 6px;transition:color var(--tr)}
+.frm:hover{color:var(--er)}
+.uact{margin-top:18px;display:flex;gap:10px}
+/* Team tip banner */
+.team-tip{margin-top:16px;background:rgba(0,51,141,.12);border:1px solid rgba(0,145,218,.18);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--mut)}
+.team-tip-icon{font-size:16px;flex-shrink:0}
+.team-tip strong{color:var(--kpmg-light)}
+
+/* WORKSPACE */
+#sw{flex-direction:row;height:100vh;overflow:hidden}
+.sl{width:192px;flex-shrink:0;background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden}
+.slh{padding:11px 13px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.slh span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.adb{background:none;border:1px solid var(--bdr);border-radius:4px;color:var(--mut);cursor:pointer;font-size:16px;line-height:1;padding:1px 7px;transition:all var(--tr)}
+.adb:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.tlist{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:5px}
+.ti{background:var(--pan);border:2px solid transparent;border-radius:var(--r);cursor:pointer;overflow:hidden;transition:all var(--tr)}
+.ti.sel{border-color:var(--kpmg-light);box-shadow:0 0 0 2px rgba(0,145,218,.15)}
+.ti:hover:not(.sel){border-color:rgba(0,145,218,.25)}
+.tp{height:92px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:repeating-conic-gradient(#0e1525 0% 25%,transparent 0% 50%) 0 0/12px 12px}
+.tp img{max-width:100%;max-height:100%;object-fit:contain}
+.tin{padding:5px 7px;display:flex;align-items:center;justify-content:space-between;gap:3px}
+.tnm{font-size:9px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tst{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.tst.pending{background:var(--wa)}.tst.processing{background:var(--kpmg-light);animation:bl 1s infinite}
+.tst.done{background:var(--ok)}.tst.error{background:var(--er)}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* CANVAS AREA */
+.ca{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* TOOLBAR */
+.ctb{display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid var(--bdr);gap:7px;background:var(--sur);flex-wrap:wrap;min-height:44px}
+.ctit{font-size:10px;color:var(--mut);font-family:var(--fm);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sep{width:1px;height:20px;background:var(--bdr);flex-shrink:0}
+.ttg{display:flex;gap:2px}
+
+/* TOOL BUTTON */
+.tt{background:var(--pan);border:1px solid var(--bdr);border-radius:5px;color:var(--mut);cursor:pointer;width:28px;height:26px;display:flex;align-items:center;justify-content:center;transition:all var(--tr);flex-shrink:0;padding:0;position:relative}
+.tt:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.tt.on{background:var(--kpmg-blue);border-color:var(--kpmg-light);color:#fff}
+.tt svg{width:13px;height:13px;pointer-events:none}
+.tt[title]:hover::after{content:attr(title);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0e1628;border:1px solid var(--bdr);border-radius:4px;padding:3px 8px;white-space:nowrap;font-size:10px;color:var(--txt);z-index:99;pointer-events:none}
+
+/* BRUSH CONTROLS */
+.bctrl{display:flex;align-items:center;gap:5px}
+.bctrl label{font-size:10px;color:var(--mut);white-space:nowrap}
+.bctrl span{font-family:var(--fm);font-size:10px;min-width:24px;text-align:right}
+input[type="range"].slim{width:60px;height:2px;-webkit-appearance:none;background:var(--bdr);border-radius:1px;outline:none;cursor:pointer}
+input[type="range"].slim::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--kpmg-light);border-radius:50%;cursor:pointer}
+.vmode{display:flex;gap:2px}
+.vm{background:var(--pan);border:1px solid var(--bdr);border-radius:4px;color:var(--mut);cursor:pointer;font-size:10px;padding:3px 7px;transition:all var(--tr);white-space:nowrap;font-family:var(--fb)}
+.vm.on{background:rgba(0,51,141,.3);border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.tbtn{background:var(--pan);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);cursor:pointer;font-size:10px;padding:4px 9px;transition:all var(--tr);display:flex;align-items:center;gap:3px;white-space:nowrap;font-family:var(--fb)}
+.tbtn:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.tbtn.ac{background:var(--kpmg-blue);border-color:var(--kpmg-light);color:#fff}
+.tbtn.ac:hover{background:var(--kpmg-light)}
+
+/* MAGIC WAND CONTROLS */
+#wand-opts{display:none;align-items:center;gap:6px}
+#wand-opts.vis{display:flex}
+#wand-opts label{font-size:10px;color:var(--mut);white-space:nowrap}
+#wand-opts span{font-family:var(--fm);font-size:10px;min-width:24px}
+.wtog{display:flex;gap:2px}
+.wt{background:var(--pan);border:1px solid var(--bdr);border-radius:4px;color:var(--mut);cursor:pointer;font-size:9px;padding:3px 7px;transition:all var(--tr);font-family:var(--fb)}
+.wt.on{background:rgba(0,51,141,.25);border-color:var(--kpmg-light);color:var(--kpmg-light)}
+
+/* CANVAS WRAP */
+.cw{flex:1;position:relative;overflow:hidden;background:repeating-conic-gradient(#0a101e 0% 25%,var(--bg) 0% 50%) 0 0/20px 20px}
+#out{position:absolute;top:0;left:0;transform-origin:top left;image-rendering:high-quality}
+#brushCv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+
+/* OVERLAYS */
+.ov{position:absolute;inset:0;background:rgba(5,8,15,.93);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:13px;z-index:10;padding:24px;text-align:center}
+.ov.vis{display:flex}
+.spin{width:40px;height:40px;border:3px solid var(--bdr);border-top-color:var(--kpmg-light);border-radius:50%;animation:sp .75s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ovl{font-size:14px;font-weight:600}
+.ovs{color:var(--mut);font-size:11px;max-width:300px}
+.pbar{width:220px;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
+.pbri{height:100%;background:linear-gradient(90deg,var(--kpmg-blue),var(--kpmg-light));width:0%;transition:width .3s}
+.etit{color:var(--er);font-weight:600;font-size:14px;margin-top:4px}
+.emsg{color:var(--mut);font-size:11px;max-width:360px;line-height:1.65;background:var(--pan);padding:10px 13px;border-radius:var(--r);border:1px solid var(--bdr);font-family:var(--fm);white-space:pre-wrap;text-align:left;word-break:break-all}
+.eacs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.eb{background:var(--pan);border:1px solid var(--bdr);border-radius:var(--r);color:var(--txt);cursor:pointer;font-size:11px;padding:7px 13px;transition:all var(--tr);font-family:var(--fb)}
+.eb:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.eb.pr{background:var(--kpmg-blue);border-color:var(--kpmg-light);color:#fff}
+.eb.pr:hover{background:var(--kpmg-light)}
+
+/* ZOOM HUD */
+.zhud{position:absolute;bottom:12px;left:12px;background:rgba(5,8,15,.8);border:1px solid var(--bdr);border-radius:5px;display:flex;align-items:center;gap:1px;padding:2px 3px;z-index:5;backdrop-filter:blur(4px)}
+.zb{background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:3px;transition:all var(--tr)}
+.zb:hover{background:var(--pan);color:var(--txt)}
+.zlbl{font-family:var(--fm);font-size:10px;color:var(--mut);min-width:34px;text-align:center}
+
+/* RIGHT PANEL */
+.sr{width:272px;flex-shrink:0;background:var(--sur);border-left:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
+.cs{border-bottom:1px solid var(--bdr)}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;cursor:pointer;user-select:none;transition:background var(--tr)}
+.ch:hover{background:rgba(0,145,218,.04)}
+.cttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.cc{color:var(--mut);font-size:10px;transition:transform var(--tr)}
+.cb{padding:3px 13px 13px}
+.cs.col .cb{display:none}.cs.col .cc{transform:rotate(-90deg)}
+
+/* BG TYPE BUTTONS */
+.bgtg{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:11px}
+.bgtb{background:var(--pan);border:1px solid var(--bdr);border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 2px;transition:all var(--tr);color:var(--mut);font-size:9px}
+.bgtb svg{width:15px;height:15px}
+.bgtb:hover,.bgtb.act{border-color:var(--kpmg-light);color:var(--kpmg-light);background:var(--ag)}
+.crow{display:flex;gap:7px;align-items:center;margin-bottom:9px}
+.csw{width:28px;height:28px;border-radius:6px;border:2px solid var(--bdr);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0}
+.csw input[type="color"]{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:calc(100%+8px);height:calc(100%+8px)}
+.chx{flex:1;background:var(--pan);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);font-family:var(--fm);font-size:11px;padding:5px 8px;outline:none;transition:border-color var(--tr)}
+.chx:focus{border-color:var(--kpmg-light)}
+.qcs{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.qc{width:19px;height:19px;border-radius:4px;cursor:pointer;border:1.5px solid rgba(255,255,255,.07);transition:transform var(--tr)}
+.qc:hover{transform:scale(1.25)}
+.gg{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.gs{aspect-ratio:1;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all var(--tr)}
+.gs:hover,.gs.act{border-color:var(--kpmg-light);transform:scale(1.07)}
+.biu{background:var(--pan);border:1.5px dashed var(--bdr);border-radius:var(--r);cursor:pointer;padding:13px;text-align:center;font-size:11px;color:var(--mut);position:relative;transition:border-color var(--tr)}
+.biu:hover{border-color:var(--kpmg-light)}
+.biu input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+#bgip{width:100%;height:56px;object-fit:cover;border-radius:5px;display:none;margin-top:7px}
+
+/* SLIDERS */
+.slr{margin-bottom:10px}
+.slrr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sll{font-size:11px;color:var(--mut)}
+.slv{font-family:var(--fm);font-size:10px;color:var(--txt);background:var(--pan);padding:1px 5px;border-radius:3px;min-width:30px;text-align:center}
+input[type="range"]{width:100%;height:2px;-webkit-appearance:none;background:var(--bdr);border-radius:1px;outline:none;cursor:pointer}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--kpmg-light);border-radius:50%;cursor:pointer;transition:transform var(--tr)}
+input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.rl{background:none;border:none;color:var(--mut);cursor:pointer;font-size:10px;padding:0;text-decoration:underline;font-family:var(--fb);margin-top:4px;display:inline-block;transition:color var(--tr)}
+.rl:hover{color:var(--txt)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
+.fb{background:var(--pan);border:1px solid var(--bdr);border-radius:var(--r);color:var(--mut);cursor:pointer;font-size:11px;padding:7px;transition:all var(--tr);display:flex;align-items:center;justify-content:center;gap:5px;font-family:var(--fb)}
+.fb:hover,.fb.act{border-color:var(--kpmg-light);color:var(--kpmg-light);background:var(--ag)}
+
+/* REFINE BUTTONS */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.rb{background:var(--pan);border:1px solid var(--bdr);border-radius:5px;color:var(--mut);cursor:pointer;font-size:10px;padding:6px;transition:all var(--tr);text-align:center;font-family:var(--fb);font-weight:500}
+.rb:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.rb.red:hover{border-color:var(--er);color:var(--er)}
+
+/* DOWNLOAD */
+.dls{padding:11px 13px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--bdr);position:sticky;bottom:0;background:var(--sur)}
+.dl1{background:var(--kpmg-blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:var(--fb);font-size:12px;font-weight:700;padding:10px 13px;transition:all var(--tr);display:flex;align-items:center;justify-content:center;gap:5px;width:100%;letter-spacing:.3px}
+.dl1:hover{background:var(--kpmg-light);box-shadow:0 5px 16px rgba(0,51,141,.4);transform:translateY(-1px)}
+.dla{background:var(--pan);border:1px solid var(--bdr);border-radius:var(--r);color:var(--txt);cursor:pointer;font-family:var(--fb);font-size:11px;padding:8px 13px;transition:all var(--tr);display:flex;align-items:center;justify-content:center;gap:5px;width:100%}
+.dla:hover{border-color:var(--kpmg-light);color:var(--kpmg-light)}
+.bwrap{display:none}.bwrap.vis{display:block}
+.bwl{font-size:10px;color:var(--mut);margin-bottom:3px}
+.bwb{height:2px;background:var(--bdr);border-radius:1px;overflow:hidden}
+.bwf{height:100%;background:var(--kpmg-light);width:0%;transition:width .18s}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;background:var(--pan);border:1px solid var(--bdr);border-radius:var(--r);color:var(--txt);font-size:12px;padding:9px 15px;z-index:9999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;max-width:290px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--ok)}.toast.er{border-color:var(--er)}
+
+/* LASSO OVERLAY */
+#lassoOverlay{position:absolute;inset:0;pointer-events:none;z-index:5;}
+
+/* EDGE PREVIEW */
+.edge-badge{position:absolute;top:6px;right:6px;background:rgba(0,145,218,.15);border:1px solid rgba(0,145,218,.35);border-radius:4px;padding:2px 7px;font-size:9px;color:var(--kpmg-light);pointer-events:none;z-index:6}
+
+/* TEAM MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(5,8,15,.85);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.vis{display:flex}
+.modal{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:32px;width:560px;max-height:80vh;overflow-y:auto;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:4px;color:var(--txt)}
+.modal .msub{font-size:12px;color:var(--mut);margin-bottom:20px}
+.tip-section{margin-bottom:18px}
+.tip-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--kpmg-light);margin-bottom:8px}
+.tip-row{display:flex;gap:10px;margin-bottom:7px;font-size:12px;color:var(--mut);line-height:1.5}
+.tip-row b{color:var(--txt);min-width:110px;font-weight:600}
+.modal-close{background:var(--kpmg-blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:var(--fb);font-size:12px;font-weight:600;padding:9px 20px;margin-top:4px;transition:background var(--tr)}
+.modal-close:hover{background:var(--kpmg-light)}
+/* KPMG bar at top of right panel */
+.kpmg-bar{height:3px;background:linear-gradient(90deg,var(--kpmg-blue),var(--kpmg-light));flex-shrink:0}
+
+/* FEATHER ADVANCED OPTIONS */
+.feather-adv{background:rgba(0,51,141,.08);border:1px solid rgba(0,145,218,.15);border-radius:var(--r);padding:9px 10px;margin-top:8px}
+.feather-adv .fa-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:10px;color:var(--mut)}
+.feather-adv .fa-row:last-child{margin-bottom:0}
+.feather-mode{display:flex;gap:3px;margin-top:6px}
+.fm-btn{background:var(--pan);border:1px solid var(--bdr);border-radius:4px;color:var(--mut);cursor:pointer;font-size:9px;padding:3px 8px;transition:all var(--tr);font-family:var(--fb)}
+.fm-btn.on{background:rgba(0,51,141,.3);border-color:var(--kpmg-light);color:var(--kpmg-light)}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- TEAM EFFICIENCY MODAL -->
+<div class="modal-bg" id="teamModal">
+  <div class="modal">
+    <h3>🏢 Team Efficiency Guide — 30 Members</h3>
+    <p class="msub">Best practices for using ClearCut Studio at KPMG scale</p>
+
+    <div class="tip-section">
+      <h4>⚡ Workflow — Process Images Fast</h4>
+      <div class="tip-row"><b>Batch upload</b> Drop up to 30 images at once per session — AI runs sequentially while you work on previous results</div>
+      <div class="tip-row"><b>Preset canvas</b> Agree on one canvas size across the team (e.g. 1920×1080 or LinkedIn 1200×628) and use the preset every time</div>
+      <div class="tip-row"><b>Start AI first</b> Upload all images before touching any tools — AI queues them all and processes while you refine</div>
+    </div>
+
+    <div class="tip-section">
+      <h4>👥 Team Split Strategy</h4>
+      <div class="tip-row"><b>10 uploaders</b> Upload and batch-process images, download clean PNGs, pass to refiners</div>
+      <div class="tip-row"><b>15 refiners</b> Open downloaded PNGs, use Restore/Erase/Hair brush for edge cleanup</div>
+      <div class="tip-row"><b>5 finalizers</b> Apply background, adjust scale/position, final export</div>
+    </div>
+
+    <div class="tip-section">
+      <h4>💾 File Naming Convention</h4>
+      <div class="tip-row"><b>Input format</b> <code style="font-family:var(--fm);color:var(--kpmg-light)">LASTNAME_FIRSTNAME_role.jpg</code></div>
+      <div class="tip-row"><b>Output suffix</b> App auto-adds <code style="font-family:var(--fm);color:var(--kpmg-light)">_clearcut.png</code> — keep this for traceability</div>
+      <div class="tip-row"><b>ZIP export</b> Use "Download All as ZIP" to batch export — saves ~2 minutes per person</div>
+    </div>
+
+    <div class="tip-section">
+      <h4>🎯 Quality Tips</h4>
+      <div class="tip-row"><b>Image input</b> Use the highest resolution source available — app preserves full native resolution</div>
+      <div class="tip-row"><b>Feather = 2–4px</b> Ideal for headshots on solid/gradient backgrounds. Use 0 for print</div>
+      <div class="tip-row"><b>Auto Clean first</b> Run "Auto Clean" before manual brush work — fixes 80% of edges automatically</div>
+      <div class="tip-row"><b>Hair Refine (H)</b> Use on flyaway hair before downloading — biggest quality difference for headshots</div>
+      <div class="tip-row"><b>No server needed</b> AI runs 100% in browser — each user can run independently, no bottleneck</div>
+    </div>
+
+    <div class="tip-section">
+      <h4>📋 KPMG Background Presets</h4>
+      <div class="tip-row"><b>LinkedIn headshot</b> White (#FFFFFF) background, 1200×628 canvas</div>
+      <div class="tip-row"><b>Internal directory</b> KPMG Blue (#00338D) or white background, Square 1080×1080</div>
+      <div class="tip-row"><b>Presentations</b> Transparent PNG, import directly into PowerPoint</div>
+    </div>
+
+    <button class="modal-close" onclick="document.getElementById('teamModal').classList.remove('vis')">Got it — close</button>
+  </div>
+</div>
+
+<!-- MODEL LOADING BAR -->
+<div id="mbar">
+  <div class="mspin" id="mspin"></div>
+  <span id="mtxt">Initialising KPMG ClearCut…</span>
+  <span id="mpct"></span>
+  <div id="offline-badge" style="display:none;margin-left:auto;align-items:center;gap:6px;background:rgba(0,176,80,.15);border:1px solid rgba(0,176,80,.35);border-radius:4px;padding:2px 10px;font-size:10px;color:#00B050;font-weight:600">
+    <span style="width:6px;height:6px;border-radius:50%;background:#00B050;display:inline-block"></span>
+    OFFLINE READY
+  </div>
+</div>
+
+<!-- GLOBAL QUEUE STATUS HUD (shows when processing background images) -->
+<div id="qhud" style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--sur);border:1px solid var(--kpmg-light);border-radius:8px;padding:10px 18px;z-index:800;box-shadow:0 8px 28px rgba(0,0,0,.5);display:none;align-items:center;gap:12px;min-width:300px">
+  <div style="width:14px;height:14px;border:2px solid rgba(0,145,218,.3);border-top-color:var(--kpmg-light);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0"></div>
+  <div style="flex:1">
+    <div style="font-size:11px;font-weight:600;color:var(--txt)" id="qhud-label">Processing images…</div>
+    <div style="height:2px;background:var(--bdr);border-radius:1px;margin-top:5px;overflow:hidden">
+      <div id="qhud-bar" style="height:100%;background:linear-gradient(90deg,var(--kpmg-blue),var(--kpmg-light));width:0%;transition:width .3s"></div>
+    </div>
+  </div>
+  <span id="qhud-count" style="font-family:var(--fm);font-size:10px;color:var(--mut)"></span>
+</div>
+
+<!-- ══ SETUP ══ -->
+<div class="scr on" id="ss">
+  <div class="card">
+    <div class="kpmg-strip">
+      <div class="kpmg-logo-mark">
+        <span class="k1"></span><span class="k2"></span><span class="k3"></span><span class="k4"></span>
+      </div>
+      <div>
+        <div class="kpmg-wordmark">KPMG</div>
+        <div class="kpmg-tagline">ClearCut Studio &nbsp;·&nbsp; AI Headshot Tool</div>
+      </div>
+      <div style="margin-left:auto"><span class="app-name">INTERNAL TOOL</span></div>
+    </div>
+    <h1>Set Output Canvas Size</h1>
+    <p class="sub">Choose the dimensions all exported images will be sized to</p>
+    <div class="r2">
+      <div class="fg"><label class="fl" for="iw">Width (px)</label><input class="fi" id="iw" type="number" value="1920" min="100" max="8000"></div>
+      <div class="fg"><label class="fl" for="ih">Height (px)</label><input class="fi" id="ih" type="number" value="1080" min="100" max="8000"></div>
+    </div>
+    <p class="plab">Quick presets</p>
+    <div class="presets">
+      <button class="pbtn" data-w="1920" data-h="1080">Full HD</button>
+      <button class="pbtn" data-w="1080" data-h="1080">Square</button>
+      <button class="pbtn" data-w="1080" data-h="1350">Portrait</button>
+      <button class="pbtn" data-w="1200" data-h="628">LinkedIn</button>
+      <button class="pbtn" data-w="595" data-h="842">A4</button>
+      <button class="pbtn" data-w="2480" data-h="3508">A4 Print</button>
+      <button class="pbtn" data-w="3840" data-h="2160">4K UHD</button>
+    </div>
+    <button class="bp" id="btn-go">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+      Continue to Upload
+    </button>
+  </div>
+</div>
+
+<!-- ══ UPLOAD ══ -->
+<div class="scr" id="su">
+  <div class="ucon">
+    <div class="upload-header">
+      <div class="upload-header-top">
+        <h2>Upload Headshots</h2>
+        <button class="bk" id="btn-back">← Back</button>
+      </div>
+      <p class="upload-meta">Output canvas: <strong id="slab">1920 × 1080</strong> &nbsp;·&nbsp; Images scale to fill at full resolution</p>
+    </div>
+    <div class="dz" id="dz">
+      <input type="file" multiple accept="image/*" id="finp">
+      <div class="dz-icon"><svg width="26" height="26" fill="none" stroke="var(--kpmg-light)" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg></div>
+      <div class="dt">Drop images here or click to browse</div>
+      <div class="ds">JPG, PNG, WEBP &nbsp;·&nbsp; Multiple files &nbsp;·&nbsp; Original quality preserved</div>
+    </div>
+    <div class="flist" id="flist"></div>
+    <div class="uact">
+      <button class="bs" id="btn-clr">Clear All</button>
+      <button class="bp" id="btn-proc" disabled style="flex:1">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Remove Backgrounds &amp; Open Editor
+      </button>
+    </div>
+    <div class="team-tip">
+      <span class="team-tip-icon">💡</span>
+      <span><strong>Team tip:</strong> Upload all images before editing — AI queues them all simultaneously while you work on the first result</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WORKSPACE ══ -->
+<div class="scr" id="sw">
+
+  <!-- LEFT FILMSTRIP -->
+  <div class="sl">
+    <div class="slh"><span>Images (<span id="ic">0</span>)</span><button class="adb" id="btn-add" title="Add more images">+</button></div>
+    <div class="tlist" id="tlist"></div>
+    <input type="file" multiple accept="image/*" id="addi" style="display:none">
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div class="ca">
+
+    <!-- TOOLBAR -->
+    <div class="ctb">
+      <span class="ctit" id="ctit">—</span>
+      <div class="sep"></div>
+
+      <!-- TOOLS -->
+      <div class="ttg" id="toolgrp">
+        <button class="tt on" data-tool="pan" title="Pan · V">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0V11"/></svg>
+        </button>
+        <button class="tt" data-tool="restore" title="Restore Brush · B">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button class="tt" data-tool="erase" title="Erase Brush · E">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M8.5 8.5l7 7M15.5 8.5l-7 7"/></svg>
+        </button>
+        <button class="tt" data-tool="wand" title="Magic Wand · W">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/></svg>
+        </button>
+        <button class="tt" data-tool="lasso" title="Lasso Select · L">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3C7 3 3 6.5 3 10c0 2.5 1.5 4.5 4 5.5l1 5.5h8l1-5.5c2.5-1 4-3 4-5.5 0-3.5-4-7-9-7z"/></svg>
+        </button>
+        <button class="tt" data-tool="colorsel" title="Select by Color · C">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity=".4"/></svg>
+        </button>
+        <button class="tt" data-tool="hair" title="Hair/Detail Refine · H">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M6 20 Q9 8 12 4 Q15 8 18 20"/><path stroke-linecap="round" d="M8 16 Q10 10 12 7 Q14 10 16 16" opacity=".5"/><path stroke-linecap="round" d="M10 19 Q11 13 12 10 Q13 13 14 19" opacity=".3"/></svg>
+        </button>
+      </div>
+
+      <!-- BRUSH SIZE/SOFTNESS (hidden for pan/wand) -->
+      <div id="brush-opts" class="bctrl">
+        <div class="sep"></div>
+        <label>Size</label>
+        <input type="range" class="slim" id="bsize" min="5" max="300" value="40">
+        <span id="bszv">40</span>
+        <label style="margin-left:4px">Soft</label>
+        <input type="range" class="slim" id="bsoft" min="0" max="100" value="60">
+        <span id="bsfv">60%</span>
+      </div>
+
+      <!-- WAND OPTIONS -->
+      <div id="wand-opts">
+        <div class="sep"></div>
+        <label>Tolerance</label>
+        <input type="range" class="slim" id="wtol" min="5" max="120" value="32">
+        <span id="wtolv">32</span>
+        <div class="wtog" style="margin-left:6px">
+          <button class="wt on" id="wt-cont">Contiguous</button>
+          <button class="wt" id="wt-all">All Similar</button>
+        </div>
+        <div class="sep" style="margin-left:2px"></div>
+        <button class="wt on" id="wt-erase" style="border-color:var(--er);color:var(--er)">Erase</button>
+        <button class="wt" id="wt-restore" style="margin-left:2px">Restore</button>
+      </div>
+
+      <!-- LASSO OPTIONS -->
+      <div id="lasso-opts" style="display:none;align-items:center;gap:6px">
+        <div class="sep"></div>
+        <div class="wtog">
+          <button class="wt on" id="lo-erase" style="border-color:var(--er);color:var(--er)">Erase</button>
+          <button class="wt" id="lo-restore">Restore</button>
+        </div>
+        <span id="lasso-hint" style="font-size:10px;color:var(--mut);margin-left:4px">Click to add points · Double-click to close</span>
+      </div>
+
+      <!-- COLOR SELECT OPTIONS -->
+      <div id="colorsel-opts" style="display:none;align-items:center;gap:6px">
+        <div class="sep"></div>
+        <label style="font-size:10px;color:var(--mut)">Tolerance</label>
+        <input type="range" class="slim" id="ctol" min="5" max="120" value="30">
+        <span id="ctolv" style="font-family:var(--fm);font-size:10px;min-width:24px">30</span>
+        <div class="wtog" style="margin-left:4px">
+          <button class="wt on" id="cs-erase" style="border-color:var(--er);color:var(--er)">Erase</button>
+          <button class="wt" id="cs-restore">Restore</button>
+        </div>
+        <span style="font-size:10px;color:var(--mut);margin-left:4px">Click color to remove/restore it globally</span>
+      </div>
+
+      <!-- HAIR REFINE OPTIONS -->
+      <div id="hair-opts" style="display:none;align-items:center;gap:6px">
+        <div class="sep"></div>
+        <label style="font-size:10px;color:var(--mut)">Radius</label>
+        <input type="range" class="slim" id="hsize" min="5" max="150" value="30">
+        <span id="hszv" style="font-family:var(--fm);font-size:10px;min-width:24px">30</span>
+        <label style="font-size:10px;color:var(--mut);margin-left:4px">Detect</label>
+        <input type="range" class="slim" id="hedge" min="5" max="80" value="20">
+        <span id="hedgev" style="font-family:var(--fm);font-size:10px;min-width:24px">20</span>
+        <div class="wtog" style="margin-left:4px">
+          <button class="wt on" id="hr-erase">Erase BG</button>
+          <button class="wt" id="hr-restore">Restore FG</button>
+        </div>
+        <span style="font-size:10px;color:var(--a2);margin-left:4px">⚡ Smart edge-aware</span>
+      </div>
+
+      <!-- UNDO / REDO -->
+      <div class="sep"></div>
+      <div class="ttg">
+        <button class="tt" id="btn-undo" title="Undo · Ctrl+Z"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/></svg></button>
+        <button class="tt" id="btn-redo" title="Redo · Ctrl+Y"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3"/></svg></button>
+      </div>
+
+      <!-- VIEW MODE -->
+      <div class="sep"></div>
+      <div class="vmode" id="vmgrp">
+        <button class="vm on" data-v="result">Result</button>
+        <button class="vm" data-v="original">Original</button>
+        <button class="vm" data-v="mask">Mask B/W</button>
+      </div>
+
+      <div class="sep"></div>
+      <button class="tbtn ac" id="btn-reproc" style="font-size:10px;padding:4px 8px">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Re-run AI
+      </button>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="cw" id="cw">
+      <canvas id="out"></canvas>
+      <canvas id="brushCv"></canvas>
+      <canvas id="lassoOverlay"></canvas>
+      <div class="edge-badge" id="edgeBadge" style="display:none">⚡ Hair Refine Active</div>
+
+      <div class="ov" id="pov">
+        <div class="spin"></div>
+        <div class="ovl" id="ovl">Removing background…</div>
+        <div class="ovs" id="ovs">RMBG-1.4 processes at 1024×1024 — first image takes ~20s while model loads, subsequent images are fast.</div>
+        <div class="pbar"><div class="pbri" id="pbri"></div></div>
+      </div>
+
+      <div class="ov" id="eov">
+        <div style="font-size:28px">⚠️</div>
+        <div class="etit">Processing Failed</div>
+        <div class="emsg" id="emsg">—</div>
+        <div class="eacs">
+          <button class="eb pr" onclick="retrySelected()">↺ Retry</button>
+          <button class="eb" onclick="skipError()">Use Original</button>
+        </div>
+      </div>
+
+      <div class="zhud">
+        <button class="zb" id="zout">−</button>
+        <span class="zlbl" id="zlbl">100%</span>
+        <button class="zb" id="zin">+</button>
+        <button class="zb" id="zfit" title="Fit" style="font-size:9px">⊡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="sr">
+    <div class="kpmg-bar"></div>
+    <div style="padding:9px 13px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">KPMG ClearCut</span>
+      <div style="display:flex;gap:5px;align-items:center">
+        <div id="offline-dot" title="Model cached — works offline" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--ok)"></div>
+        <button onclick="document.getElementById('teamModal').classList.add('vis')" style="background:rgba(0,51,141,.2);border:1px solid rgba(0,145,218,.25);border-radius:4px;color:var(--kpmg-light);cursor:pointer;font-size:9px;padding:3px 8px;font-family:var(--fb);font-weight:600;transition:all .13s" onmouseover="this.style.background='rgba(0,145,218,.2)'" onmouseout="this.style.background='rgba(0,51,141,.2)'">👥 Team Guide</button>
+      </div>
+    </div>
+
+    <!-- MASK REFINEMENT -->
+    <div class="cs" id="s-ref">
+      <div class="ch" onclick="toggleSec('s-ref')"><span class="cttl">Mask Refinement</span><span class="cc">▾</span></div>
+      <div class="cb">
+        <div class="slr">
+          <div class="slrr"><span class="sll">Feather Radius</span><span class="slv" id="lfe">2px</span></div>
+          <input type="range" id="sfe" min="0" max="60" value="2">
+        </div>
+        <!-- DEEP FEATHER CONTROLS -->
+        <div class="feather-adv">
+          <div class="fa-row">
+            <span>Feather Mode</span>
+          </div>
+          <div class="feather-mode">
+            <button class="fm-btn on" id="fm-gaussian" onclick="setFeatherMode('gaussian',this)">Gaussian</button>
+            <button class="fm-btn" id="fm-linear" onclick="setFeatherMode('linear',this)">Linear</button>
+            <button class="fm-btn" id="fm-cosine" onclick="setFeatherMode('cosine',this)">Smooth</button>
+          </div>
+          <div class="fa-row" style="margin-top:9px">
+            <span>Edge Choke</span>
+            <span style="font-family:var(--fm);font-size:10px;color:var(--txt)" id="lchokeV">0</span>
+          </div>
+          <input type="range" id="schoke" min="-10" max="10" value="0" style="width:100%">
+          <div class="fa-row" style="margin-top:8px">
+            <span>Feather Opacity</span>
+            <span style="font-family:var(--fm);font-size:10px;color:var(--txt)" id="lfopV">100%</span>
+          </div>
+          <input type="range" id="sfop" min="10" max="100" value="100" style="width:100%">
+        </div>
+        <div class="slr" style="margin-top:10px">
+          <div class="slrr"><span class="sll">Expand / Shrink</span><span class="slv" id="lex">0</span></div>
+          <input type="range" id="sex" min="-20" max="20" value="0">
+        </div>
+        <div class="rg">
+          <button class="rb" onclick="doSmooth()">Smooth Edges</button>
+          <button class="rb" onclick="doFillHoles()">Fill Holes</button>
+          <button class="rb" onclick="doInvert()">Invert Mask</button>
+          <button class="rb" onclick="doRestoreAll()">Restore All</button>
+          <button class="rb red" onclick="doClearAll()">Clear Mask</button>
+          <button class="rb" onclick="doAutoFix()">Auto Clean</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKGROUND -->
+    <div class="cs" id="s-bg">
+      <div class="ch" onclick="toggleSec('s-bg')"><span class="cttl">Background</span><span class="cc">▾</span></div>
+      <div class="cb">
+        <div class="bgtg">
+          <button class="bgtb act" data-t="color"><svg viewBox="0 0 18 18" fill="currentColor"><rect x="2" y="2" width="14" height="14" rx="2"/></svg>Color</button>
+          <button class="bgtb" data-t="gradient"><svg viewBox="0 0 18 18"><defs><linearGradient id="gd" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs><rect x="2" y="2" width="14" height="14" rx="2" fill="url(#gd)"/></svg>Gradient</button>
+          <button class="bgtb" data-t="image"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="14" height="14" rx="2"/><circle cx="6" cy="6" r="1.2"/><path d="M16 11L12 7 4 16"/></svg>Image</button>
+          <button class="bgtb" data-t="transparent"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="14" height="14" rx="2"/><line x1="2" y1="16" x2="16" y2="2"/></svg>None</button>
+        </div>
+        <div id="pc">
+          <div class="crow"><div class="csw" id="csw" style="background:#ffffff"><input type="color" id="cp" value="#ffffff"></div><input type="text" class="chx" id="chx" value="#ffffff" maxlength="7"></div>
+          <div class="qcs" id="qcs"></div>
+        </div>
+        <div id="pgr" style="display:none"><div class="gg" id="gg"></div></div>
+        <div id="pim" style="display:none"><div class="biu"><input type="file" accept="image/*" id="bgfi">☁ Upload background image</div><img id="bgip" alt=""></div>
+        <div id="ptr" style="display:none;font-size:11px;color:var(--mut);text-align:center;padding:8px 0">Exports as transparent PNG</div>
+      </div>
+    </div>
+
+    <!-- ADJUSTMENTS -->
+    <div class="cs" id="s-adj">
+      <div class="ch" onclick="toggleSec('s-adj')"><span class="cttl">Adjustments</span><span class="cc">▾</span></div>
+      <div class="cb">
+        <div class="slr"><div class="slrr"><span class="sll">Brightness</span><span class="slv" id="lbr">100</span></div><input type="range" id="sbr" min="0" max="200" value="100"></div>
+        <div class="slr"><div class="slrr"><span class="sll">Contrast</span><span class="slv" id="lco">100</span></div><input type="range" id="sco" min="0" max="200" value="100"></div>
+        <div class="slr"><div class="slrr"><span class="sll">Saturation</span><span class="slv" id="lsa">100</span></div><input type="range" id="ssa" min="0" max="200" value="100"></div>
+        <div class="slr"><div class="slrr"><span class="sll">Scale</span><span class="slv" id="lsc">100%</span></div><input type="range" id="ssc" min="10" max="150" value="100"></div>
+        <div class="slr"><div class="slrr"><span class="sll">Offset X</span><span class="slv" id="lox">0</span></div><input type="range" id="sox" min="-50" max="50" value="0"></div>
+        <div class="slr"><div class="slrr"><span class="sll">Offset Y</span><span class="slv" id="loy">0</span></div><input type="range" id="soy" min="-50" max="50" value="0"></div>
+        <button class="rl" onclick="resetAdj()">Reset adjustments</button>
+      </div>
+    </div>
+
+    <!-- TRANSFORM -->
+    <div class="cs" id="s-tr">
+      <div class="ch" onclick="toggleSec('s-tr')"><span class="cttl">Transform</span><span class="cc">▾</span></div>
+      <div class="cb">
+        <div class="fg2">
+          <button class="fb" id="bfh"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16l-4-4 4-4M17 8l4 4-4 4M12 3v18" stroke-linecap="round" stroke-linejoin="round"/></svg>Flip H</button>
+          <button class="fb" id="bfv"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7l4-4 4 4M16 17l-4 4-4-4M3 12h18" stroke-linecap="round" stroke-linejoin="round"/></svg>Flip V</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOWNLOAD -->
+    <div class="dls">
+      <div class="bwrap" id="bwrap"><div class="bwl" id="bwl">Composing…</div><div class="bwb"><div class="bwf" id="bwf"></div></div></div>
+      <button class="dl1" id="dl1">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15V3m0 12l-4-4m4 4l4-4M2 21h20"/></svg>
+        Download This Image
+      </button>
+      <button class="dla" id="dla">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h18M3 17h18"/></svg>
+        Download All as ZIP
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     RMBG-1.4 via Transformers.js
+     Model weights cached in IndexedDB = works offline after first load
+════════════════════════════════════════════════════ -->
+<script type="module">
+import { env, AutoModel, AutoProcessor, RawImage }
+  from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/+esm';
+
+env.backends.onnx.wasm.numThreads = 1;
+env.allowLocalModels = false;
+env.useBrowserCache = true; // ← caches model weights in IndexedDB for offline use
+
+let model, processor;
+
+async function loadModel() {
+  const pctEl = document.getElementById('mpct');
+  const txtEl = document.getElementById('mtxt');
+  const bar   = document.getElementById('mbar');
+
+  // Detect if model is already cached
+  const isCached = await checkModelCached();
+  if (isCached) {
+    txtEl.textContent = 'Loading RMBG-1.4 from local cache…';
+    document.getElementById('offline-badge').style.display = 'flex';
+  } else {
+    txtEl.textContent = 'First-time setup: downloading RMBG-1.4 AI (~175 MB) — will work offline after this…';
+  }
+
+  try {
+    [model, processor] = await Promise.all([
+      AutoModel.from_pretrained('briaai/RMBG-1.4', {
+        config: { model_type: 'custom' },
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.total) {
+            const pct = Math.round(p.loaded / p.total * 100);
+            pctEl.textContent = pct + '%';
+            if (!isCached) txtEl.textContent = `Downloading AI model… ${pct}% — please wait, only needed once`;
+          }
+          if (p.status === 'done' && !isCached) {
+            markModelCached();
+          }
+        }
+      }),
+      AutoProcessor.from_pretrained('briaai/RMBG-1.4', {
+        config: {
+          do_normalize: true, do_pad: false,
+          do_rescale: true,   do_resize: true,
+          image_mean: [0.5, 0.5, 0.5],
+          image_std:  [1.0, 1.0, 1.0],
+          resample: 2,
+          rescale_factor: 0.00392156862745098,
+          size: { width: 1024, height: 1024 },
+        }
+      })
+    ]);
+    bar.classList.add('gone');
+    window.__rmbgReady = true;
+    document.getElementById('offline-badge').style.display = 'flex';
+    const dot = document.getElementById('offline-dot');
+    if (dot) dot.style.display = 'block';
+    console.log('[KPMG ClearCut] ✓ RMBG-1.4 ready');
+  } catch (e) {
+    console.error('[KPMG ClearCut] model load error:', e);
+    window.__rmbgError = String(e.message || e);
+    bar.classList.add('err-bar');
+    document.getElementById('mspin').style.display = 'none';
+    txtEl.textContent = '⚠ Model failed to load. If offline, ensure model was previously cached. Error: ' + window.__rmbgError;
+  }
+}
+
+// Track whether model is cached in IndexedDB
+async function checkModelCached() {
+  try {
+    return localStorage.getItem('kcc_model_cached') === '1';
+  } catch(e) { return false; }
+}
+function markModelCached() {
+  try { localStorage.setItem('kcc_model_cached', '1'); } catch(e) {}
+}
+
+loadModel();
+
+// ─── Core inference + post-processing ───────────────────────
+window.__runRMBG = async function(imgEl) {
+  if (!model || !processor) throw new Error('Model not ready. Please wait for loading to complete.');
+
+  const image = await RawImage.fromURL(imgEl.src);
+  const processed = await processor(image);
+
+  // Remap tensor keys — different Transformers.js versions use different names
+  let inputs = processed;
+  if (processed.pixel_values && !processed.input) inputs = { input: processed.pixel_values };
+  if (processed.input && processed.input.input) inputs = { input: processed.input.input };
+
+  const result = await model(inputs);
+
+  let maskTensor;
+  if (result.output)       maskTensor = result.output[0].squeeze();
+  else if (result.logits)  maskTensor = result.logits.squeeze();
+  else { const k = Object.keys(result)[0]; const v = result[k]; maskTensor = (Array.isArray(v)?v[0]:v).squeeze(); }
+
+  while (maskTensor.dims.length > 2) maskTensor = maskTensor.squeeze(0);
+
+  const maskH = maskTensor.dims[0], maskW = maskTensor.dims[1];
+  const maskData = maskTensor.data;
+  const W = imgEl.naturalWidth, H = imgEl.naturalHeight;
+
+  // ── Bilinear upsample mask to native image resolution ──
+  const alpha = new Uint8ClampedArray(W * H);
+  for (let y = 0; y < H; y++) {
+    const fy = (y / H) * maskH;
+    const y0 = Math.min(maskH - 1, Math.floor(fy));
+    const y1 = Math.min(maskH - 1, y0 + 1);
+    const dy = fy - y0;
+    for (let x = 0; x < W; x++) {
+      const fx = (x / W) * maskW;
+      const x0 = Math.min(maskW - 1, Math.floor(fx));
+      const x1 = Math.min(maskW - 1, x0 + 1);
+      const dx = fx - x0;
+      const v = maskData[y0*maskW+x0]*(1-dx)*(1-dy)
+              + maskData[y0*maskW+x1]*dx*(1-dy)
+              + maskData[y1*maskW+x0]*(1-dx)*dy
+              + maskData[y1*maskW+x1]*dx*dy;
+      alpha[y * W + x] = Math.round(v * 255);
+    }
+  }
+
+  // ── Post-processing: clean up residual background on solid/gradient images ──
+  // For KPMG headshots (solid/gradient background) we do 3 extra passes:
+  // 1. Threshold: pixels with mask < 15% → hard 0, > 85% → hard 255
+  // 2. Spill removal: near-background edge pixels get further suppressed
+  // 3. Morphological cleanup: remove isolated noise islands
+  const postAlpha = postProcessMask(alpha, imgEl, W, H);
+  return postAlpha;
+};
+
+// ── Mask post-processing specifically tuned for headshots on solid/gradient BG ──
+window.__postProcessMask = function(alpha, imgEl, W, H) {
+  return postProcessMask(alpha, imgEl, W, H);
+};
+
+function postProcessMask(alpha, imgEl, W, H) {
+  // Draw image to get pixel data for spill analysis
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'); ctx.drawImage(imgEl, 0, 0);
+  const px = ctx.getImageData(0, 0, W, H).data;
+
+  // Sample background color from corners (reliable for solid/gradient BGs)
+  const bgColors = sampleBackgroundColor(px, W, H);
+
+  const result = new Uint8ClampedArray(alpha);
+
+  // Pass 1: Hard threshold + spill suppression
+  for (let i = 0; i < W * H; i++) {
+    const a = alpha[i];
+    const pi = i * 4;
+    const r = px[pi], g = px[pi+1], b = px[pi+2];
+
+    // Check if this pixel is very similar to background
+    let bgSim = 0;
+    for (const bg of bgColors) {
+      const dist = Math.sqrt((r-bg[0])**2 + (g-bg[1])**2 + (b-bg[2])**2);
+      bgSim = Math.max(bgSim, 1 - dist / 150);
+    }
+
+    // Suppress pixels that look like background, especially at low mask confidence
+    if (a < 30) {
+      result[i] = 0; // Hard erase very low confidence
+    } else if (a < 80 && bgSim > 0.6) {
+      result[i] = 0; // Erase likely-background at medium confidence
+    } else if (a > 200) {
+      result[i] = Math.min(255, a); // Preserve strong foreground
+    } else if (bgSim > 0.8) {
+      // High background similarity — reduce strongly
+      result[i] = Math.round(a * (1 - bgSim) * 2);
+    }
+  }
+
+  // Pass 2: Remove tiny isolated foreground islands (noise)
+  // Simple: if a non-zero pixel has fewer than 3 non-zero neighbors in 5x5, zero it
+  const cleaned = new Uint8ClampedArray(result);
+  for (let y = 2; y < H - 2; y++) {
+    for (let x = 2; x < W - 2; x++) {
+      const i = y * W + x;
+      if (result[i] < 10) continue;
+      let nonZeroNeighbors = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          if (result[(y+dy)*W+(x+dx)] > 10) nonZeroNeighbors++;
+        }
+      }
+      if (nonZeroNeighbors < 4) cleaned[i] = 0;
+    }
+  }
+
+  // Pass 3: Light edge smoothing to avoid harsh jagged edges
+  return cleaned;
+}
+
+function sampleBackgroundColor(px, W, H) {
+  const colors = [];
+  const spots = [
+    [2, 2], [W-3, 2], [2, H-3], [W-3, H-3],
+    [Math.floor(W/2), 2], [2, Math.floor(H/2)],
+    [W-3, Math.floor(H/2)], [Math.floor(W/2), H-3]
+  ];
+  for (const [x, y] of spots) {
+    const i = (y * W + x) * 4;
+    // Average a small 3x3 area around each corner
+    let r=0, g=0, b=0, c=0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x+dx, ny = y+dy;
+      if (nx>=0&&nx<W&&ny>=0&&ny<H) { const j=(ny*W+nx)*4; r+=px[j];g+=px[j+1];b+=px[j+2];c++; }
+    }
+    if (c > 0) colors.push([r/c, g/c, b/c]);
+  }
+  return colors;
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// MASK MATH
+// ═══════════════════════════════════════════════════════════
+function blurMask(data, W, H, r) {
+  if (r <= 0) return new Uint8ClampedArray(data);
+  const rad = Math.max(1, Math.round(r));
+  let src = new Uint8ClampedArray(data);
+  const tmp = new Uint8ClampedArray(W * H);
+  const dst = new Uint8ClampedArray(W * H);
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 0; y < H; y++) {
+      let s = 0, c = 0;
+      for (let dx = 0; dx <= rad; dx++) { if (dx < W) { s += src[y*W+dx]; c++; } }
+      for (let x = 0; x < W; x++) {
+        tmp[y*W+x] = c ? Math.round(s/c) : 0;
+        if (x+rad+1 < W) { s += src[y*W+x+rad+1]; c++; }
+        if (x-rad >= 0) { s -= src[y*W+x-rad]; c--; }
+      }
+    }
+    for (let x = 0; x < W; x++) {
+      let s = 0, c = 0;
+      for (let dy = 0; dy <= rad; dy++) { if (dy < H) { s += tmp[dy*W+x]; c++; } }
+      for (let y = 0; y < H; y++) {
+        dst[y*W+x] = c ? Math.round(s/c) : 0;
+        if (y+rad+1 < H) { s += tmp[(y+rad+1)*W+x]; c++; }
+        if (y-rad >= 0) { s -= tmp[(y-rad)*W+x]; c--; }
+      }
+    }
+    src = new Uint8ClampedArray(dst);
+  }
+  return dst;
+}
+
+function morphDilate(data, W, H, r) {
+  const out = new Uint8ClampedArray(W * H);
+  const r2 = r * r;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let best = 0;
+    for (let dy = -r; dy <= r && best < 255; dy++) {
+      const ny = y + dy; if (ny < 0 || ny >= H) continue;
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx*dx+dy*dy > r2) continue;
+        const nx = x + dx; if (nx < 0 || nx >= W) continue;
+        if (data[ny*W+nx] > best) best = data[ny*W+nx];
+      }
+    }
+    out[y*W+x] = best;
+  }
+  return out;
+}
+
+function morphErode(data, W, H, r) {
+  const out = new Uint8ClampedArray(W * H);
+  const r2 = r * r;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let best = 255;
+    for (let dy = -r; dy <= r && best > 0; dy++) {
+      const ny = y + dy; if (ny < 0 || ny >= H) continue;
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx*dx+dy*dy > r2) continue;
+        const nx = x + dx; if (nx < 0 || nx >= W) continue;
+        if (data[ny*W+nx] < best) best = data[ny*W+nx];
+      }
+    }
+    out[y*W+x] = best;
+  }
+  return out;
+}
+
+function morphExpand(data, W, H, amt) {
+  if (!amt) return new Uint8ClampedArray(data);
+  const r = Math.abs(Math.round(amt));
+  return amt > 0 ? morphDilate(data, W, H, r) : morphErode(data, W, H, r);
+}
+
+function paintBrush(alpha, W, H, cx, cy, radius, softness, value) {
+  const hardR = radius * (1 - softness / 100);
+  const x0 = Math.max(0, Math.floor(cx - radius));
+  const x1 = Math.min(W - 1, Math.ceil(cx + radius));
+  const y0 = Math.max(0, Math.floor(cy - radius));
+  const y1 = Math.min(H - 1, Math.ceil(cy + radius));
+  for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
+    const d = Math.hypot(px - cx, py - cy);
+    if (d > radius) continue;
+    const str = d <= hardR ? 1 : (radius - d) / Math.max(0.001, radius - hardR);
+    const i = py * W + px;
+    if (value === 255) alpha[i] = Math.min(255, alpha[i] + Math.round(str * 200));
+    else               alpha[i] = Math.max(0,   alpha[i] - Math.round(str * 200));
+  }
+}
+
+// Magic wand: flood-fill or global select by color similarity
+function magicWand(imgData, alpha, W, H, sx, sy, tol, contiguous, eraseMode) {
+  const px = imgData.data;
+  const si = (Math.floor(sy) * W + Math.floor(sx)) * 4;
+  const tr = px[si], tg = px[si+1], tb = px[si+2];
+  const tol2 = tol * tol * 3;
+
+  function colorMatch(i) {
+    const pi = i * 4;
+    const dr = px[pi]-tr, dg = px[pi+1]-tg, db = px[pi+2]-tb;
+    return dr*dr + dg*dg + db*db <= tol2;
+  }
+
+  const visited = new Uint8Array(W * H);
+  const applyVal = eraseMode ? 0 : 255;
+
+  if (contiguous) {
+    const stack = [Math.floor(sy) * W + Math.floor(sx)];
+    while (stack.length) {
+      const idx = stack.pop();
+      if (idx < 0 || idx >= W*H || visited[idx]) continue;
+      visited[idx] = 1;
+      if (!colorMatch(idx)) continue;
+      alpha[idx] = applyVal;
+      const x = idx % W, y = Math.floor(idx / W);
+      if (x > 0) stack.push(idx - 1);
+      if (x < W-1) stack.push(idx + 1);
+      if (y > 0) stack.push(idx - W);
+      if (y < H-1) stack.push(idx + W);
+    }
+  } else {
+    for (let i = 0; i < W * H; i++) if (colorMatch(i)) alpha[i] = applyVal;
+  }
+}
+
+// Build canvas with mask applied
+function buildMasked(imgEl, alpha, W, H, feather, expand) {
+  let a = new Uint8ClampedArray(alpha);
+  if (expand) a = morphExpand(a, W, H, expand);
+  if (feather > 0 || S.featherChoke !== 0) {
+    a = applyFeather(a, W, H, feather, S.featherMode, S.featherChoke, S.featherOpacity);
+  } else if (S.featherOpacity < 100) {
+    const fac = S.featherOpacity / 100;
+    for(let i=0;i<a.length;i++) a[i] = Math.round(a[i]*fac);
+  }
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(imgEl, 0, 0, W, H);
+  const id = ctx.getImageData(0, 0, W, H);
+  for (let i = 0; i < W*H; i++) id.data[i*4+3] = a[i];
+  ctx.putImageData(id, 0, 0);
+  return cv;
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const GRADS = [
+  'linear-gradient(135deg,#f5f7fa,#c3cfe2)',
+  'linear-gradient(135deg,#667eea,#764ba2)',
+  'linear-gradient(135deg,#f093fb,#f5576c)',
+  'linear-gradient(135deg,#4facfe,#00f2fe)',
+  'linear-gradient(135deg,#43e97b,#38f9d7)',
+  'linear-gradient(135deg,#fa709a,#fee140)',
+  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  'linear-gradient(135deg,#2c3e50,#4ca1af)',
+  'linear-gradient(135deg,#1a1a2e,#16213e)',
+  'linear-gradient(135deg,#e0c3fc,#8ec5fc)',
+  'linear-gradient(135deg,#f7971e,#ffd200)',
+];
+const QC = ['#ffffff','#f0f0ec','#e8e0d8','#1a1a1a','#00338D','#0091DA','#1E49E2','#6D2077','#00B050','#2b4c7e'];
+
+const S = {
+  w:1920, h:1080,
+  imgs:[], sel:null,
+  adj: adj0(),
+  bg: { type:'color', color:'#ffffff', gi:0, imgUrl:null },
+  tool:'pan', brush:{size:40,soft:60},
+  wand:{ tol:32, contiguous:true, eraseMode:true },
+  view:'result', feather:2, expand:0,
+  featherMode:'gaussian', featherChoke:0, featherOpacity:100,
+};
+const adjMap={}, undoStack={}, redoStack={};
+const vp = { scale:1, tx:0, ty:0 };
+function adj0(){return{br:100,co:100,sa:100,sc:100,ox:0,oy:0,fh:false,fv:false};}
+
+const $=id=>document.getElementById(id);
+const uid=()=>Math.random().toString(36).slice(2,10);
+const fmtSz=b=>b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB';
+const f2url=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(f);});
+const loadImg=src=>new Promise((res,rej)=>{const el=new Image();el.crossOrigin='anonymous';el.onload=()=>res(el);el.onerror=rej;el.src=src;});
+
+function toast(msg,t=''){const el=$('toast');el.textContent=msg;el.className='toast show '+t;clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3400);}
+
+// ═══════════════════════════════════════════════════════════
+// SCREEN NAV
+// ═══════════════════════════════════════════════════════════
+function goScreen(id){
+  document.querySelectorAll('.scr').forEach(s=>{s.classList.remove('on');s.style.display='';});
+  const el=$(id); el.classList.add('on');
+  if(id==='sw') el.style.display='flex';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════════
+$('btn-go').addEventListener('click',()=>{
+  S.w=Math.max(100,Math.min(8000,parseInt($('iw').value)||1920));
+  S.h=Math.max(100,Math.min(8000,parseInt($('ih').value)||1080));
+  $('slab').textContent=S.w+' × '+S.h; goScreen('su');
+});
+$('btn-back').addEventListener('click',()=>goScreen('ss'));
+document.querySelectorAll('.pbtn').forEach(b=>b.addEventListener('click',()=>{$('iw').value=b.dataset.w;$('ih').value=b.dataset.h;}));
+
+// ═══════════════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════════════
+const pend=[];
+const updProc=()=>$('btn-proc').disabled=!pend.length;
+function renderFlist(){
+  const list=$('flist'); list.innerHTML='';
+  pend.forEach(({id,file,dataUrl})=>{
+    const el=document.createElement('div'); el.className='fi2';
+    el.innerHTML=`<img class="fth" src="${dataUrl}"><span class="fn" title="${file.name}">${file.name}</span><span class="fsz">${fmtSz(file.size)}</span><button class="frm" data-id="${id}">✕</button>`;
+    el.querySelector('.frm').addEventListener('click',()=>{const i=pend.findIndex(f=>f.id===id);if(i>-1)pend.splice(i,1);renderFlist();updProc();});
+    list.appendChild(el);
+  });
+}
+async function addFiles(files){for(const f of files){if(!f.type.startsWith('image/'))continue;const du=await f2url(f);pend.push({id:uid(),file:f,dataUrl:du});}renderFlist();updProc();}
+const dz=$('dz'),finp=$('finp');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');addFiles([...e.dataTransfer.files]);});
+finp.addEventListener('change',()=>{addFiles([...finp.files]);finp.value='';});
+$('btn-clr').addEventListener('click',()=>{pend.length=0;renderFlist();updProc();});
+$('btn-proc').addEventListener('click',async()=>{
+  if(!pend.length) return;
+  for(const {id,file,dataUrl} of pend){
+    S.imgs.push({id,name:file.name,file,dataUrl,el:null,W:0,H:0,alpha:null,rawImgData:null,status:'pending',err:''});
+    adjMap[id]=adj0(); undoStack[id]=[]; redoStack[id]=[];
+  }
+  pend.length=0; goScreen('sw'); initWS(); processQueue();
+});
+
+// ═══════════════════════════════════════════════════════════
+// WORKSPACE INIT
+// ═══════════════════════════════════════════════════════════
+function initWS(){
+  buildGG(); buildQC(); renderThumbs();
+  if(S.imgs.length) selImg(S.imgs[0].id);
+}
+function buildGG(){
+  const g=$('gg'); g.innerHTML='';
+  GRADS.forEach((gd,i)=>{
+    const el=document.createElement('div'); el.className='gs'+(i===S.bg.gi?' act':''); el.style.background=gd;
+    el.addEventListener('click',()=>{S.bg.gi=i;g.querySelectorAll('.gs').forEach(s=>s.classList.remove('act'));el.classList.add('act');drawCanvas();});
+    g.appendChild(el);
+  });
+}
+function buildQC(){
+  const w=$('qcs'); w.innerHTML='';
+  QC.forEach(c=>{const el=document.createElement('div');el.className='qc';el.style.background=c;el.addEventListener('click',()=>applyColor(c));w.appendChild(el);});
+}
+
+// ═══════════════════════════════════════════════════════════
+// THUMBNAILS
+// ═══════════════════════════════════════════════════════════
+function renderThumbs(){
+  const list=$('tlist'); list.innerHTML='';
+  if(!S.imgs.length){list.innerHTML='<div style="color:var(--mut);font-size:11px;text-align:center;padding:20px">No images</div>';return;}
+  S.imgs.forEach(img=>{
+    const el=document.createElement('div'); el.className='ti'+(img.id===S.sel?' sel':''); el.dataset.id=img.id;
+    el.innerHTML=`<div class="tp"><img id="th_${img.id}" src="${img.dataUrl}" alt=""></div><div class="tin"><span class="tnm" title="${img.name}">${img.name}</span><span class="tst ${img.status}"></span></div>`;
+    el.addEventListener('click',()=>selImg(img.id));
+    list.appendChild(el);
+  });
+  $('ic').textContent=S.imgs.length;
+}
+function refreshThumb(id){
+  const img=S.imgs.find(i=>i.id===id); if(!img) return;
+  const el=document.querySelector(`.ti[data-id="${id}"]`); if(!el) return;
+  const st=el.querySelector('.tst'); if(st) st.className='tst '+img.status;
+  if(img.status==='done'&&img.alpha&&img.el){
+    const th=$('th_'+id); if(!th) return;
+    const cv=buildMasked(img.el,img.alpha,img.W,img.H,0,0);
+    th.src=cv.toDataURL('image/png',0.4);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECT IMAGE
+// ═══════════════════════════════════════════════════════════
+function selImg(id){
+  if(S.sel) adjMap[S.sel]={...S.adj};
+  S.sel=id;
+  const img=S.imgs.find(i=>i.id===id); if(!img) return;
+  S.adj=adjMap[id]?{...adjMap[id]}:adj0(); adjMap[id]={...S.adj};
+  syncSliders();
+  document.querySelectorAll('.ti').forEach(el=>el.classList.toggle('sel',el.dataset.id===id));
+  $('ctit').textContent=img.name;
+  hideEov();
+  if(img.status==='processing') showPov('Removing background…','RMBG-1.4 AI is analysing the image…');
+  else if(img.status==='error'){hidePov();showEov(img.err);}
+  else{hidePov();fitToView();drawCanvas();}
+}
+function syncSliders(){
+  [['sbr','lbr','br'],['sco','lco','co'],['ssa','lsa','sa'],['ssc','lsc','sc'],['sox','lox','ox'],['soy','loy','oy']].forEach(([s,l,k])=>{
+    const sl=$(s);if(sl)sl.value=S.adj[k];
+    const lb=$(l);if(lb)lb.textContent=k==='sc'?S.adj[k]+'%':S.adj[k];
+  });
+  $('bfh').classList.toggle('act',S.adj.fh);
+  $('bfv').classList.toggle('act',S.adj.fv);
+}
+
+// ═══════════════════════════════════════════════════════════
+// OVERLAYS
+// ═══════════════════════════════════════════════════════════
+function showPov(l,s){$('pov').classList.add('vis');$('ovl').textContent=l;if(s)$('ovs').textContent=s;$('pbri').style.width='0%';$('out').style.display='none';}
+function hidePov(){$('pov').classList.remove('vis');}
+function showEov(m){$('eov').classList.add('vis');$('emsg').textContent=m;}
+function hideEov(){$('eov').classList.remove('vis');}
+window.retrySelected=()=>{const img=S.imgs.find(i=>i.id===S.sel);if(img){img.status='pending';img.err='';}hideEov();processOne(S.sel);};
+window.skipError=()=>{hideEov();const img=S.imgs.find(i=>i.id===S.sel);if(img){hidePov();drawCanvas();}};
+
+// ═══════════════════════════════════════════════════════════
+// AI PROCESSING
+// ═══════════════════════════════════════════════════════════
+async function waitForModel(){
+  if(window.__rmbgReady) return;
+  if(window.__rmbgError) throw new Error(window.__rmbgError);
+  return new Promise((res,rej)=>{
+    const t=setInterval(()=>{
+      if(window.__rmbgReady){clearInterval(t);res();}
+      if(window.__rmbgError){clearInterval(t);rej(new Error(window.__rmbgError));}
+    },200);
+  });
+}
+
+async function processQueue(){
+  const pending = S.imgs.filter(i=>i.status==='pending');
+  if (!pending.length) return;
+  // Show global queue HUD
+  updateQueueHUD();
+  for(const img of pending) await processOne(img.id);
+  hideQueueHUD();
+}
+
+function updateQueueHUD() {
+  const total = S.imgs.length;
+  const done  = S.imgs.filter(i=>i.status==='done'||i.status==='error').length;
+  const inProg = S.imgs.filter(i=>i.status==='processing').length;
+  const pending= S.imgs.filter(i=>i.status==='pending').length;
+  const qhud = $('qhud');
+  if (!qhud) return;
+  if (inProg > 0 || pending > 0) {
+    qhud.style.display = 'flex';
+    $('qhud-label').textContent = inProg > 0 ? `Removing background… (${done}/${total} done)` : `Queued: ${pending} image(s) waiting`;
+    $('qhud-bar').style.width = (done / Math.max(1, total) * 100) + '%';
+    $('qhud-count').textContent = `${pending} pending`;
+  } else {
+    hideQueueHUD();
+  }
+}
+function hideQueueHUD() {
+  const qhud = $('qhud');
+  if (qhud) qhud.style.display = 'none';
+}
+
+async function processOne(id){
+  const img=S.imgs.find(i=>i.id===id); if(!img) return;
+  img.status='processing'; img.err='';
+  refreshThumb(id);
+  updateQueueHUD();
+
+  // Show processing overlay only if this is the selected image
+  if(id===S.sel){
+    hideEov();
+    showPov(
+      `Removing background… ${getQueuePosition(id)}`,
+      window.__rmbgReady ? 'AI is analysing your image — this takes 5–15 seconds' : 'Waiting for AI model to finish loading…'
+    );
+  } else {
+    // For background images, update the thumbnail status dot and queue HUD
+    toast(`⚙ Processing: ${img.name}`, '');
+  }
+
+  let pint = setInterval(()=>{
+    const cur = parseInt($('pbri').style.width||'0');
+    if(cur < 85 && id === S.sel) $('pbri').style.width = (cur + 1.2) + '%';
+    updateQueueHUD();
+  }, 350);
+
+  try{
+    await waitForModel();
+    const el = await loadImg(img.dataUrl);
+    img.el = el; img.W = el.naturalWidth; img.H = el.naturalHeight;
+
+    // Cache raw pixel data for magic wand / color tools
+    const tmpCv = document.createElement('canvas'); tmpCv.width=img.W; tmpCv.height=img.H;
+    const tc = tmpCv.getContext('2d'); tc.drawImage(el, 0, 0);
+    img.rawImgData = tc.getImageData(0, 0, img.W, img.H);
+
+    if(id===S.sel) { $('ovl').textContent = 'AI isolating subject…'; $('ovs').textContent = 'Detecting person edges at full resolution'; }
+    img.alpha = await window.__runRMBG(el);
+    img.status = 'done';
+    clearInterval(pint);
+    if(id===S.sel) $('pbri').style.width = '100%';
+    undoStack[id]=[]; redoStack[id]=[];
+    console.log('[KPMG ClearCut] ✓', img.name, img.W+'×'+img.H);
+  } catch(e) {
+    clearInterval(pint);
+    img.status = 'error'; img.err = String(e.message||e);
+    console.error('[KPMG ClearCut] ✗', img.name, e);
+  }
+
+  refreshThumb(id);
+  updateQueueHUD();
+
+  if(id===S.sel){
+    hidePov();
+    if(img.status==='done'){
+      hideEov(); fitToView(); drawCanvas();
+      toast('✓ Background removed — ' + img.name, 'ok');
+    } else {
+      showEov(img.err);
+    }
+  } else if(img.status==='done') {
+    toast('✓ Done: ' + img.name, 'ok');
+  } else {
+    toast('✗ Failed: ' + img.name, 'er');
+  }
+}
+
+function getQueuePosition(id) {
+  const pending = S.imgs.filter(i=>i.status==='pending'||i.status==='processing');
+  const total   = S.imgs.length;
+  const done    = S.imgs.filter(i=>i.status==='done'||i.status==='error').length;
+  if (total > 1) return `(${done + 1} of ${total})`;
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS RENDERING
+// ═══════════════════════════════════════════════════════════
+function drawCanvas(){
+  const img=S.imgs.find(i=>i.id===S.sel);
+  const cv=$('out');
+  if(!img||!img.el){cv.style.display='none';return;}
+
+  cv.width=S.w; cv.height=S.h;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,S.w,S.h);
+
+  if(S.view==='original'){
+    drawSubj(ctx,img.el,S.adj,S.w,S.h);
+    cv.style.display='block'; applyVP(); return;
+  }
+  if(S.view==='mask'&&img.alpha){
+    ctx.fillStyle='#111'; ctx.fillRect(0,0,S.w,S.h);
+    let a=img.alpha;
+    if(S.expand) a=morphExpand(a,img.W,img.H,S.expand);
+    if(S.feather>0||S.featherChoke!==0) a=applyFeather(a,img.W,img.H,S.feather,S.featherMode,S.featherChoke,S.featherOpacity);
+    const mc=document.createElement('canvas'); mc.width=img.W; mc.height=img.H;
+    const mctx=mc.getContext('2d');
+    const id2=mctx.createImageData(img.W,img.H);
+    for(let i=0;i<img.W*img.H;i++){id2.data[i*4]=a[i];id2.data[i*4+1]=a[i];id2.data[i*4+2]=a[i];id2.data[i*4+3]=255;}
+    mctx.putImageData(id2,0,0);
+    ctx.drawImage(mc,0,0,S.w,S.h);
+    cv.style.display='block'; applyVP(); return;
+  }
+
+  // Result
+  paintBg(ctx,S.w,S.h,()=>{
+    const subj=img.alpha?buildMasked(img.el,img.alpha,img.W,img.H,S.feather,S.expand):img.el;
+    drawSubj(ctx,subj,S.adj,S.w,S.h);
+    cv.style.display='block'; applyVP();
+  });
+}
+
+function paintBg(ctx,W,H,done){
+  const bg=S.bg;
+  if(bg.type==='transparent'){done();return;}
+  if(bg.type==='color'){ctx.fillStyle=bg.color;ctx.fillRect(0,0,W,H);done();return;}
+  if(bg.type==='gradient'){drawGrad(ctx,GRADS[bg.gi],W,H);done();return;}
+  if(bg.type==='image'&&bg.imgUrl){
+    const bi=new Image(); bi.onload=()=>{const sc=Math.max(W/bi.width,H/bi.height);const bw=bi.width*sc,bh=bi.height*sc;ctx.drawImage(bi,(W-bw)/2,(H-bh)/2,bw,bh);done();};bi.onerror=done;bi.src=bg.imgUrl;return;
+  }
+  done();
+}
+
+function drawSubj(ctx,imgEl,adj,W,H){
+  const iW=imgEl.naturalWidth||imgEl.width, iH=imgEl.naturalHeight||imgEl.height;
+  const ar=iW/iH, car=W/H;
+  // COVER: fill the canvas fully — image fills canvas edge-to-edge (no black bars)
+  // Scale factor adj.sc/100 lets user zoom from 100% (cover) down or up
+  let bw, bh;
+  if(ar > car){ bh = H * (adj.sc/100); bw = bh * ar; }
+  else { bw = W * (adj.sc/100); bh = bw / ar; }
+  const x = (W-bw)/2 + (adj.ox/100)*W, y = (H-bh)/2 + (adj.oy/100)*H;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.filter=`brightness(${adj.br}%) contrast(${adj.co}%) saturate(${adj.sa}%)`;
+  if(adj.fh||adj.fv){ctx.translate(W/2,H/2);ctx.scale(adj.fh?-1:1,adj.fv?-1:1);ctx.translate(-W/2,-H/2);}
+  ctx.drawImage(imgEl,x,y,bw,bh);
+  ctx.restore();
+}
+
+function drawGrad(ctx,css,W,H){
+  const m=css.match(/linear-gradient\((\d+)deg,(.+)\)/); if(!m){ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);return;}
+  const rad=(parseInt(m[1])-90)*Math.PI/180, mag=Math.sqrt(W*W+H*H);
+  const gr=ctx.createLinearGradient(W/2-Math.cos(rad)*mag/2,H/2-Math.sin(rad)*mag/2,W/2+Math.cos(rad)*mag/2,H/2+Math.sin(rad)*mag/2);
+  m[2].split(/,(?![^(]*\))/).forEach((s,i,a)=>{s=s.trim();const p=s.match(/^(.*?)\s+([\d.]+)%$/);p?gr.addColorStop(parseFloat(p[2])/100,p[1].trim()):gr.addColorStop(i/(a.length-1),s);});
+  ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM / PAN
+// ═══════════════════════════════════════════════════════════
+function fitToView(){
+  const wrap=$('cw');
+  const m=40;
+  const ws=Math.min((wrap.clientWidth-m)/S.w,(wrap.clientHeight-m)/S.h,1);
+  vp.scale=ws;
+  vp.tx=(wrap.clientWidth-S.w*ws)/2;
+  vp.ty=(wrap.clientHeight-S.h*ws)/2;
+  applyVP();
+}
+function applyVP(){
+  $('out').style.transform=`translate(${vp.tx}px,${vp.ty}px) scale(${vp.scale})`;
+  $('zlbl').textContent=Math.round(vp.scale*100)+'%';
+}
+function zoomAt(f,cx,cy){
+  const ns=Math.max(0.05,Math.min(10,vp.scale*f));
+  const r=ns/vp.scale;
+  vp.tx=cx-(cx-vp.tx)*r; vp.ty=cy-(cy-vp.ty)*r; vp.scale=ns; applyVP();
+}
+$('zin').addEventListener('click',()=>{const c=$('cw');zoomAt(1.3,c.clientWidth/2,c.clientHeight/2);});
+$('zout').addEventListener('click',()=>{const c=$('cw');zoomAt(1/1.3,c.clientWidth/2,c.clientHeight/2);});
+$('zfit').addEventListener('click',fitToView);
+$('cw').addEventListener('wheel',e=>{e.preventDefault();const r=$('cw').getBoundingClientRect();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top);},{passive:false});
+
+let panState=null;
+$('cw').addEventListener('mousedown',e=>{
+  if(e.button===1||(e.button===0&&S.tool==='pan')){
+    panState={mx:e.clientX,my:e.clientY,tx:vp.tx,ty:vp.ty};
+    $('cw').style.cursor='grabbing'; e.preventDefault();
+  }
+});
+window.addEventListener('mousemove',e=>{if(panState){vp.tx=panState.tx+(e.clientX-panState.mx);vp.ty=panState.ty+(e.clientY-panState.my);applyVP();}});
+window.addEventListener('mouseup',e=>{if(panState&&(e.button===0||e.button===1)){panState=null;$('cw').style.cursor='';}});
+
+// ═══════════════════════════════════════════════════════════
+// BRUSH PAINTING
+// ═══════════════════════════════════════════════════════════
+const bCv=$('brushCv'), bCtx=bCv.getContext('2d');
+let painting=false, lastPx=null, lastPy=null;
+
+function resizeBrushCv(){bCv.width=$('cw').clientWidth;bCv.height=$('cw').clientHeight;}
+new ResizeObserver(resizeBrushCv).observe($('cw'));
+resizeBrushCv();
+
+function drawCursor(vx,vy){
+  bCtx.clearRect(0,0,bCv.width,bCv.height);
+  if(S.tool==='pan'||S.tool==='wand'||S.tool==='colorsel'||S.tool==='lasso') return;
+  const isHair=S.tool==='hair';
+  const sz=isHair?hairBrush.size:S.brush.size;
+  const r=(sz/2)*vp.scale;
+  const isRestore=S.tool==='restore'||(isHair&&!hairBrush.eraseMode);
+  const col=isHair?'rgba(6,182,212,.9)':isRestore?'rgba(34,197,94,.85)':'rgba(239,68,68,.85)';
+  const colFade=isHair?'rgba(6,182,212,.3)':isRestore?'rgba(34,197,94,.35)':'rgba(239,68,68,.35)';
+  bCtx.beginPath(); bCtx.arc(vx,vy,r,0,Math.PI*2);
+  bCtx.strokeStyle=col; bCtx.lineWidth=1.5; bCtx.stroke();
+  if(isHair){
+    bCtx.beginPath();bCtx.arc(vx,vy,2.5,0,Math.PI*2);bCtx.fillStyle=col;bCtx.fill();
+  } else {
+    const hr=r*(1-S.brush.soft/100);
+    if(hr>2){bCtx.beginPath();bCtx.arc(vx,vy,hr,0,Math.PI*2);bCtx.strokeStyle=colFade;bCtx.lineWidth=.8;bCtx.stroke();}
+  }
+}
+
+// Convert viewport → canvas coords → image coords
+function vpToImg(vx,vy){
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img||!img.el) return null;
+  const cx=(vx-vp.tx)/vp.scale, cy=(vy-vp.ty)/vp.scale;
+  const adj=S.adj; const W=S.w,H=S.h; const iW=img.W,iH=img.H;
+  const ar=iW/iH,car=W/H;
+  let bw,bh;
+  if(ar>car){bw=W*(adj.sc/100);bh=bw/ar;}else{bh=H*(adj.sc/100);bw=bh*ar;}
+  const dx=(W-bw)/2+(adj.ox/100)*W, dy=(H-bh)/2+(adj.oy/100)*H;
+  return [(cx-dx)/bw*iW,(cy-dy)/bh*iH];
+}
+
+function brushRadiusInImg(){
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img) return S.brush.size;
+  const adj=S.adj; const W=S.w,H=S.h; const iW=img.W,iH=img.H;
+  const ar=iW/iH,car=W/H;
+  const bw=ar>car?W*(adj.sc/100):(H*(adj.sc/100))*(iW/iH);
+  return (S.brush.size/2)/vp.scale/(bw/iW);
+}
+
+function pushUndo(id){
+  const img=S.imgs.find(i=>i.id===id); if(!img||!img.alpha) return;
+  undoStack[id]=undoStack[id]||[];
+  undoStack[id].push(new Uint8ClampedArray(img.alpha));
+  if(undoStack[id].length>25) undoStack[id].shift();
+  redoStack[id]=[];
+}
+
+$('cw').addEventListener('mousemove',e=>{
+  const r=$('cw').getBoundingClientRect();
+  const vx=e.clientX-r.left, vy=e.clientY-r.top;
+  // Lasso & hair are handled by capture-phase listeners; just draw cursor here
+  if(S.tool==='lasso'||S.tool==='colorsel'){return;}
+  if(S.tool==='hair'){drawCursor(vx,vy);return;}
+  drawCursor(vx,vy);
+  if(!painting||S.tool==='pan'||S.tool==='wand') return;
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img||!img.alpha) return;
+  const coords=vpToImg(vx,vy); if(!coords) return;
+  const [ix,iy]=coords, br=brushRadiusInImg();
+  if(lastPx!==null){
+    const dist=Math.hypot(ix-lastPx,iy-lastPy);
+    const steps=Math.max(1,Math.ceil(dist/(br*.2)));
+    for(let s=1;s<=steps;s++){
+      paintBrush(img.alpha,img.W,img.H,lastPx+(ix-lastPx)*s/steps,lastPy+(iy-lastPy)*s/steps,br,S.brush.soft,S.tool==='restore'?255:0);
+    }
+  } else paintBrush(img.alpha,img.W,img.H,ix,iy,br,S.brush.soft,S.tool==='restore'?255:0);
+  lastPx=ix; lastPy=iy;
+  drawCanvas();
+});
+
+$('cw').addEventListener('mousedown',e=>{
+  if(e.button!==0||S.tool==='pan') return;
+  // New tools handled by capture-phase listener
+  if(S.tool==='lasso'||S.tool==='colorsel'||S.tool==='hair') return;
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img||!img.alpha) return;
+  const r=$('cw').getBoundingClientRect();
+  const vx=e.clientX-r.left, vy=e.clientY-r.top;
+  if(S.tool==='wand'){
+    const coords=vpToImg(vx,vy); if(!coords) return;
+    const [ix,iy]=coords;
+    if(ix<0||ix>=img.W||iy<0||iy>=img.H) return;
+    pushUndo(S.sel);
+    magicWand(img.rawImgData,img.alpha,img.W,img.H,ix,iy,S.wand.tol,S.wand.contiguous,S.wand.eraseMode);
+    drawCanvas(); refreshThumb(S.sel);
+    return;
+  }
+  pushUndo(S.sel);
+  painting=true; lastPx=null; lastPy=null;
+  e.preventDefault();
+});
+
+$('cw').addEventListener('mouseleave',()=>{bCtx.clearRect(0,0,bCv.width,bCv.height);});
+window.addEventListener('mouseup',e=>{if(painting&&e.button===0){painting=false;lastPx=null;lastPy=null;refreshThumb(S.sel);}});
+
+// ═══════════════════════════════════════════════════════════
+// UNDO / REDO
+// ═══════════════════════════════════════════════════════════
+function doUndo(){
+  const id=S.sel; if(!id) return;
+  const img=S.imgs.find(i=>i.id===id); if(!img||!img.alpha) return;
+  const st=undoStack[id]||[]; if(!st.length){toast('Nothing to undo');return;}
+  redoStack[id]=redoStack[id]||[];
+  redoStack[id].push(new Uint8ClampedArray(img.alpha));
+  img.alpha=st.pop(); drawCanvas(); toast('Undo');
+}
+function doRedo(){
+  const id=S.sel; if(!id) return;
+  const img=S.imgs.find(i=>i.id===id); if(!img||!img.alpha) return;
+  const st=redoStack[id]||[]; if(!st.length){toast('Nothing to redo');return;}
+  undoStack[id]=undoStack[id]||[];
+  undoStack[id].push(new Uint8ClampedArray(img.alpha));
+  img.alpha=st.pop(); drawCanvas(); toast('Redo');
+}
+$('btn-undo').addEventListener('click',doUndo);
+$('btn-redo').addEventListener('click',doRedo);
+
+// ═══════════════════════════════════════════════════════════
+// MASK REFINE BUTTONS
+// ═══════════════════════════════════════════════════════════
+function withUndo(fn){
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img||!img.alpha) return;
+  pushUndo(S.sel); fn(img); drawCanvas(); refreshThumb(S.sel);
+}
+window.doSmooth=()=>withUndo(img=>{img.alpha=blurMask(img.alpha,img.W,img.H,2);toast('Edges smoothed');});
+window.doFillHoles=()=>withUndo(img=>{img.alpha=morphErode(morphDilate(img.alpha,img.W,img.H,6),img.W,img.H,6);toast('Holes filled');});
+window.doInvert=()=>withUndo(img=>{for(let i=0;i<img.alpha.length;i++)img.alpha[i]=255-img.alpha[i];toast('Mask inverted');});
+window.doRestoreAll=()=>withUndo(img=>{img.alpha.fill(255);toast('Mask restored');});
+window.doClearAll=()=>withUndo(img=>{img.alpha.fill(0);toast('Mask cleared');});
+window.doAutoFix=()=>withUndo(img=>{
+  // Step 1: morphological close (fill holes)
+  img.alpha = morphErode(morphDilate(img.alpha,img.W,img.H,5),img.W,img.H,3);
+  // Step 2: remove isolated noise
+  const cleaned = new Uint8ClampedArray(img.alpha);
+  const W=img.W, H=img.H;
+  for(let y=2;y<H-2;y++) for(let x=2;x<W-2;x++){
+    const i=y*W+x; if(img.alpha[i]<10) continue;
+    let n=0;
+    for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) if(img.alpha[(y+dy)*W+(x+dx)]>10) n++;
+    if(n<5) cleaned[i]=0;
+  }
+  img.alpha = cleaned;
+  // Step 3: run background spill post-processing if rawImgData available
+  if(img.rawImgData && window.__postProcessMask) {
+    const refined = window.__postProcessMask(img.alpha, img.el, img.W, img.H);
+    img.alpha = refined;
+  }
+  // Step 4: light edge smooth
+  img.alpha = blurMask(img.alpha,img.W,img.H,1);
+  toast('✓ Auto-cleaned — spill removed & edges refined');
+});
+
+// ═══════════════════════════════════════════════════════════
+// TOOL SELECTION
+// ═══════════════════════════════════════════════════════════
+function setTool(t){
+  S.tool=t;
+  document.querySelectorAll('#toolgrp .tt').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
+  const showBrush=t==='restore'||t==='erase';
+  $('brush-opts').style.display=showBrush?'flex':'none';
+  $('wand-opts').classList.toggle('vis',t==='wand');
+  const cw=$('cw');
+  cw.style.cursor=t==='pan'?'grab':t==='wand'?'crosshair':'none';
+}
+document.querySelectorAll('#toolgrp .tt').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+
+// KEYBOARD
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='v'||e.key==='V') setTool('pan');
+  if(e.key==='b'||e.key==='B') setTool('restore');
+  if(e.key==='e'||e.key==='E') setTool('erase');
+  if(e.key==='w'||e.key==='W') setTool('wand');
+  if(e.key==='l'||e.key==='L') setTool('lasso');
+  if(e.key==='c'||e.key==='C') setTool('colorsel');
+  if(e.key==='h'||e.key==='H') setTool('hair');
+  if(e.key==='Escape'&&S.tool==='lasso'){lasso.active=false;lasso.points=[];lassoCtx.clearRect(0,0,lassoCv.width,lassoCv.height);}
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();doUndo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();doRedo();}
+  if(e.key==='='||e.key==='+'){const c=$('cw');zoomAt(1.2,c.clientWidth/2,c.clientHeight/2);}
+  if(e.key==='-'){const c=$('cw');zoomAt(1/1.2,c.clientWidth/2,c.clientHeight/2);}
+  if(e.key==='0') fitToView();
+  if(e.key==='['){
+    if(S.tool==='hair'&&hairBrush.size>6){hairBrush.size=Math.max(5,hairBrush.size-10);$('hsize').value=hairBrush.size;$('hszv').textContent=hairBrush.size;}
+    else if(S.brush.size>6){S.brush.size=Math.max(5,S.brush.size-10);$('bsize').value=S.brush.size;$('bszv').textContent=S.brush.size;}
+  }
+  if(e.key===']'){
+    if(S.tool==='hair'&&hairBrush.size<300){hairBrush.size=Math.min(300,hairBrush.size+10);$('hsize').value=hairBrush.size;$('hszv').textContent=hairBrush.size;}
+    else if(S.brush.size<300){S.brush.size=Math.min(300,S.brush.size+10);$('bsize').value=S.brush.size;$('bszv').textContent=S.brush.size;}
+  }
+});
+
+// BRUSH SLIDERS
+$('bsize').addEventListener('input',function(){S.brush.size=+this.value;$('bszv').textContent=this.value;});
+$('bsoft').addEventListener('input',function(){S.brush.soft=+this.value;$('bsfv').textContent=this.value+'%';});
+
+// VIEW MODE
+document.querySelectorAll('#vmgrp .vm').forEach(b=>b.addEventListener('click',()=>{
+  S.view=b.dataset.v;
+  document.querySelectorAll('#vmgrp .vm').forEach(x=>x.classList.toggle('on',x.dataset.v===S.view));
+  drawCanvas();
+}));
+
+// WAND CONTROLS
+$('wtol').addEventListener('input',function(){S.wand.tol=+this.value;$('wtolv').textContent=this.value;});
+[$('wt-cont'),$('wt-all')].forEach(b=>b.addEventListener('click',()=>{
+  S.wand.contiguous=b.id==='wt-cont';
+  $('wt-cont').classList.toggle('on',S.wand.contiguous);
+  $('wt-all').classList.toggle('on',!S.wand.contiguous);
+}));
+[$('wt-erase'),$('wt-restore')].forEach(b=>b.addEventListener('click',()=>{
+  S.wand.eraseMode=b.id==='wt-erase';
+  $('wt-erase').classList.toggle('on',S.wand.eraseMode);
+  $('wt-restore').classList.toggle('on',!S.wand.eraseMode);
+}));
+
+// ═══════════════════════════════════════════════════════════
+// FEATHER / EXPAND
+// ═══════════════════════════════════════════════════════════
+$('sfe').addEventListener('input',function(){S.feather=+this.value;$('lfe').textContent=this.value+'px';drawCanvas();});
+$('sex').addEventListener('input',function(){S.expand=+this.value;$('lex').textContent=this.value;drawCanvas();});
+
+// ─── Advanced feather controls ───
+$('schoke').addEventListener('input',function(){S.featherChoke=+this.value;$('lchokeV').textContent=this.value;drawCanvas();});
+$('sfop').addEventListener('input',function(){S.featherOpacity=+this.value;$('lfopV').textContent=this.value+'%';drawCanvas();});
+window.setFeatherMode=function(mode,btn){
+  S.featherMode=mode;
+  document.querySelectorAll('.fm-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  drawCanvas();
+};
+
+// Enhanced blurMask that respects featherMode
+function applyFeather(data, W, H, r, mode, choke, opacity) {
+  if(r <= 0 && choke === 0) return new Uint8ClampedArray(data);
+  let result = new Uint8ClampedArray(data);
+  // Apply choke first (positive = expand, negative = shrink)
+  if(choke !== 0) result = morphExpand(result, W, H, choke);
+
+  if(r <= 0) {
+    // Only choke, no feather — apply opacity scaling
+    if(opacity < 100) for(let i=0;i<result.length;i++) result[i]=Math.round(result[i]*(opacity/100));
+    return result;
+  }
+
+  // Feather using selected mode
+  if(mode === 'gaussian') {
+    result = blurMask(result, W, H, r);
+  } else if(mode === 'linear') {
+    // Linear feather: distance transform approximation via multiple small blurs
+    result = blurMask(result, W, H, Math.ceil(r/2));
+    result = blurMask(result, W, H, Math.ceil(r/2));
+  } else if(mode === 'cosine') {
+    // Smooth/cosine: 3 passes of smaller blur gives a smoother S-curve falloff
+    const sr = Math.max(1, Math.ceil(r/3));
+    for(let p=0;p<3;p++) result = blurMask(result, W, H, sr);
+  }
+
+  // Apply opacity: scale the feathered alpha
+  if(opacity < 100) {
+    const fac = opacity / 100;
+    for(let i = 0; i < result.length; i++) result[i] = Math.round(result[i] * fac);
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BG CONTROLS
+// ═══════════════════════════════════════════════════════════
+document.querySelector('.bgtg').addEventListener('click',e=>{const b=e.target.closest('.bgtb');if(b)setBgType(b.dataset.t);});
+function setBgType(t){
+  S.bg.type=t;
+  document.querySelectorAll('.bgtb').forEach(b=>b.classList.toggle('act',b.dataset.t===t));
+  $('pc').style.display=t==='color'?'':'none';
+  $('pgr').style.display=t==='gradient'?'':'none';
+  $('pim').style.display=t==='image'?'':'none';
+  $('ptr').style.display=t==='transparent'?'':'none';
+  drawCanvas();
+}
+$('cp').addEventListener('input',()=>applyColor($('cp').value));
+$('chx').addEventListener('input',()=>{if(/^#[0-9a-fA-F]{6}$/.test($('chx').value))applyColor($('chx').value);});
+function applyColor(c){S.bg.color=c;$('cp').value=c;$('chx').value=c;$('csw').style.background=c;drawCanvas();}
+$('bgfi').addEventListener('change',async function(){const f=this.files[0];if(!f)return;const u=await f2url(f);S.bg.imgUrl=u;const p=$('bgip');p.src=u;p.style.display='block';drawCanvas();});
+
+// ═══════════════════════════════════════════════════════════
+// ADJUSTMENTS
+// ═══════════════════════════════════════════════════════════
+[['sbr','lbr','br'],['sco','lco','co'],['ssa','lsa','sa'],['ssc','lsc','sc'],['sox','lox','ox'],['soy','loy','oy']].forEach(([s,l,k])=>{
+  $(s).addEventListener('input',function(){S.adj[k]=+this.value;if(S.sel)adjMap[S.sel]={...S.adj};$(l).textContent=k==='sc'?this.value+'%':this.value;drawCanvas();});
+});
+window.resetAdj=()=>{S.adj=adj0();if(S.sel)adjMap[S.sel]={...S.adj};syncSliders();drawCanvas();};
+$('bfh').addEventListener('click',()=>{S.adj.fh=!S.adj.fh;if(S.sel)adjMap[S.sel]={...S.adj};$('bfh').classList.toggle('act',S.adj.fh);drawCanvas();});
+$('bfv').addEventListener('click',()=>{S.adj.fv=!S.adj.fv;if(S.sel)adjMap[S.sel]={...S.adj};$('bfv').classList.toggle('act',S.adj.fv);drawCanvas();});
+window.toggleSec=id=>$(id).classList.toggle('col');
+
+// ═══════════════════════════════════════════════════════════
+// ADD MORE
+// ═══════════════════════════════════════════════════════════
+$('btn-reproc').addEventListener('click',async()=>{
+  if(!S.sel) return;
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img) return;
+  img.status='pending'; img.err=''; await processOne(S.sel);
+});
+$('btn-add').addEventListener('click',()=>$('addi').click());
+$('addi').addEventListener('change',async function(){
+  const files=[...this.files]; this.value=''; if(!files.length) return;
+  const ids=[];
+  for(const f of files){
+    if(!f.type.startsWith('image/'))continue;
+    const du=await f2url(f); const id=uid();
+    S.imgs.push({id,name:f.name,file:f,dataUrl:du,el:null,W:0,H:0,alpha:null,rawImgData:null,status:'pending',err:''});
+    adjMap[id]=adj0(); undoStack[id]=[]; redoStack[id]=[]; ids.push(id);
+  }
+  renderThumbs();
+  for(const id of ids) await processOne(id);
+  renderThumbs();
+});
+
+// ═══════════════════════════════════════════════════════════
+// DOWNLOAD
+// ═══════════════════════════════════════════════════════════
+async function compose(imgId){
+  const img=S.imgs.find(i=>i.id===imgId); if(!img||!img.el) throw new Error('Image not ready');
+  const saved={...S.adj}; S.adj=adjMap[imgId]?{...adjMap[imgId]}:adj0();
+  return new Promise((res,rej)=>{
+    const cv=document.createElement('canvas'); cv.width=S.w; cv.height=S.h;
+    const ctx=cv.getContext('2d'); ctx.clearRect(0,0,S.w,S.h);
+    const subj=img.alpha?buildMasked(img.el,img.alpha,img.W,img.H,S.feather,S.expand):img.el;
+    paintBg(ctx,S.w,S.h,()=>{drawSubj(ctx,subj,S.adj,S.w,S.h);S.adj=saved;cv.toBlob(b=>res(b),'image/png');});
+  });
+}
+
+$('dl1').addEventListener('click',async()=>{
+  if(!S.sel) return toast('No image selected','er');
+  const img=S.imgs.find(i=>i.id===S.sel); if(!img) return;
+  try{toast('Composing…');const b=await compose(S.sel);saveAs(b,img.name.replace(/\.[^.]+$/,'')+'_clearcut.png');toast('✓ Downloaded!','ok');}
+  catch(e){toast('Failed: '+e.message,'er');}
+});
+
+$('dla').addEventListener('click',async()=>{
+  const ready=S.imgs.filter(i=>i.el);
+  if(!ready.length) return toast('No images ready','er');
+  const bw=$('bwrap'),bl=$('bwl'),bf=$('bwf'); bw.classList.add('vis');
+  const zip=new JSZip();
+  for(let i=0;i<S.imgs.length;i++){
+    const img=S.imgs[i]; if(!img.el) continue;
+    bl.textContent=`Composing ${i+1}/${S.imgs.length}…`; bf.style.width=((i+1)/S.imgs.length*80)+'%';
+    try{const b=await compose(img.id);zip.file(img.name.replace(/\.[^.]+$/,'')+'_clearcut.png',b);}catch(e){console.warn('skip',img.name);}
+  }
+  bl.textContent='Packing ZIP…';
+  const zb=await zip.generateAsync({type:'blob'},m=>{bf.style.width=(80+m.percent*.2)+'%';});
+  saveAs(zb,'clearcut_export.zip');
+  toast('✓ Exported '+S.imgs.length+' image(s)','ok');
+  setTimeout(()=>{bw.classList.remove('vis');bf.style.width='0%';},1800);
+});
+
+// ═══════════════════════════════════════════════════════════
+// COLOR SELECT TOOL (global color range)
+// ═══════════════════════════════════════════════════════════
+const colorSel = { tol: 30, eraseMode: true };
+
+function colorSelectApply(imgData, alpha, W, H, sx, sy, tol, eraseMode) {
+  const px = imgData.data;
+  const si = (Math.floor(sy) * W + Math.floor(sx)) * 4;
+  const tr = px[si], tg = px[si+1], tb = px[si+2];
+  const tol2 = tol * tol * 3;
+  const applyVal = eraseMode ? 0 : 255;
+  for (let i = 0; i < W * H; i++) {
+    const pi = i * 4;
+    const dr = px[pi]-tr, dg = px[pi+1]-tg, db = px[pi+2]-tb;
+    if (dr*dr + dg*dg + db*db <= tol2) alpha[i] = applyVal;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HAIR / DETAIL REFINE TOOL (edge-aware smart brush)
+// ═══════════════════════════════════════════════════════════
+const hairBrush = { size: 30, edgeThresh: 20, eraseMode: true };
+
+function sobelEdge(imgData, W, H) {
+  // Returns Float32Array of edge magnitude 0-1 per pixel
+  const d = imgData.data;
+  const gray = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) gray[i] = (d[i*4]*0.299 + d[i*4+1]*0.587 + d[i*4+2]*0.114) / 255;
+  const edge = new Float32Array(W * H);
+  for (let y = 1; y < H-1; y++) for (let x = 1; x < W-1; x++) {
+    const gx = -gray[(y-1)*W+(x-1)] + gray[(y-1)*W+(x+1)]
+               -2*gray[y*W+(x-1)]   + 2*gray[y*W+(x+1)]
+               -gray[(y+1)*W+(x-1)] + gray[(y+1)*W+(x+1)];
+    const gy = -gray[(y-1)*W+(x-1)] -2*gray[(y-1)*W+x] - gray[(y-1)*W+(x+1)]
+               +gray[(y+1)*W+(x-1)] +2*gray[(y+1)*W+x] + gray[(y+1)*W+(x+1)];
+    edge[y*W+x] = Math.min(1, Math.sqrt(gx*gx + gy*gy) * 4);
+  }
+  return edge;
+}
+
+let cachedEdgeMap = null, cachedEdgeId = null;
+function getEdgeMap(img) {
+  if (cachedEdgeId === img.id && cachedEdgeMap) return cachedEdgeMap;
+  cachedEdgeMap = sobelEdge(img.rawImgData, img.W, img.H);
+  cachedEdgeId = img.id;
+  return cachedEdgeMap;
+}
+
+function paintHairBrush(img, cx, cy, radius, edgeThresh, eraseMode) {
+  const edgeMap = getEdgeMap(img);
+  const alpha = img.alpha;
+  const W = img.W, H = img.H;
+  const x0 = Math.max(0, Math.floor(cx - radius));
+  const x1 = Math.min(W - 1, Math.ceil(cx + radius));
+  const y0 = Math.max(0, Math.floor(cy - radius));
+  const y1 = Math.min(H - 1, Math.ceil(cy + radius));
+  const edgeT = edgeThresh / 100;
+  for (let py = y0; py <= y1; py++) for (let px2 = x0; px2 <= x1; px2++) {
+    const d = Math.hypot(px2 - cx, py - cy);
+    if (d > radius) continue;
+    const i = py * W + px2;
+    const falloff = 1 - (d / radius);
+    if (eraseMode) {
+      // Erase BG: only affect pixels that are BELOW the edge threshold (likely background)
+      const isEdge = edgeMap[i] > edgeT;
+      // On strong edge: preserve, nearby edge: blend, no edge: full erase
+      const strength = isEdge ? 0 : falloff * 180;
+      alpha[i] = Math.max(0, alpha[i] - Math.round(strength));
+    } else {
+      // Restore FG: boost pixels ON or near edges (likely hair/fur)
+      const edgeBoost = edgeMap[i] > edgeT ? 1.5 : 0.7;
+      alpha[i] = Math.min(255, alpha[i] + Math.round(falloff * 180 * edgeBoost));
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LASSO TOOL
+// ═══════════════════════════════════════════════════════════
+const lasso = { points: [], active: false, eraseMode: true };
+const lassoCv = document.getElementById('lassoOverlay');
+const lassoCtx = lassoCv.getContext('2d');
+
+function resizeLassoCv() { lassoCv.width = $('cw').clientWidth; lassoCv.height = $('cw').clientHeight; }
+new ResizeObserver(resizeLassoCv).observe($('cw'));
+resizeLassoCv();
+
+function imgToVP(ix, iy) {
+  const img = S.imgs.find(i => i.id === S.sel); if (!img || !img.el) return [0,0];
+  const adj = S.adj, W = S.w, H = S.h, iW = img.W, iH = img.H;
+  const ar = iW/iH, car = W/H;
+  let bw, bh;
+  if (ar > car) { bw = W*(adj.sc/100); bh = bw/ar; } else { bh = H*(adj.sc/100); bw = bh*ar; }
+  const dx = (W-bw)/2 + (adj.ox/100)*W, dy = (H-bh)/2 + (adj.oy/100)*H;
+  const cx = (ix/iW)*bw + dx, cy = (iy/iH)*bh + dy;
+  return [cx * vp.scale + vp.tx, cy * vp.scale + vp.ty];
+}
+
+function drawLassoOverlay(mouseVX, mouseVY) {
+  lassoCtx.clearRect(0, 0, lassoCv.width, lassoCv.height);
+  if (!lasso.active || !lasso.points.length) return;
+  lassoCtx.save();
+  lassoCtx.setLineDash([5, 4]);
+  lassoCtx.lineWidth = 1.5;
+  lassoCtx.strokeStyle = lasso.eraseMode ? 'rgba(239,68,68,.9)' : 'rgba(34,197,94,.9)';
+  lassoCtx.fillStyle = lasso.eraseMode ? 'rgba(239,68,68,.08)' : 'rgba(34,197,94,.08)';
+  lassoCtx.beginPath();
+  const [vx0, vy0] = imgToVP(lasso.points[0][0], lasso.points[0][1]);
+  lassoCtx.moveTo(vx0, vy0);
+  for (let k = 1; k < lasso.points.length; k++) {
+    const [vx, vy] = imgToVP(lasso.points[k][0], lasso.points[k][1]);
+    lassoCtx.lineTo(vx, vy);
+  }
+  if (mouseVX !== undefined) lassoCtx.lineTo(mouseVX, mouseVY);
+  lassoCtx.stroke();
+  // Draw dots
+  lasso.points.forEach(([ix, iy], idx) => {
+    const [vx, vy] = imgToVP(ix, iy);
+    lassoCtx.beginPath(); lassoCtx.arc(vx, vy, idx===0?5:3, 0, Math.PI*2);
+    lassoCtx.fillStyle = idx===0 ? (lasso.eraseMode?'rgba(239,68,68,.9)':'rgba(34,197,94,.9)') : 'rgba(255,255,255,.7)';
+    lassoCtx.fill();
+  });
+  lassoCtx.restore();
+}
+
+function lassoFill(img) {
+  if (lasso.points.length < 3) return;
+  const W = img.W, H = img.H;
+  const pts = lasso.points;
+  const applyVal = lasso.eraseMode ? 0 : 255;
+  // Scanline fill in image coordinates
+  const minY = Math.max(0, Math.floor(Math.min(...pts.map(p=>p[1]))));
+  const maxY = Math.min(H-1, Math.ceil(Math.max(...pts.map(p=>p[1]))));
+  for (let y = minY; y <= maxY; y++) {
+    const intersects = [];
+    for (let k = 0; k < pts.length; k++) {
+      const [x1, y1] = pts[k], [x2, y2] = pts[(k+1)%pts.length];
+      if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) {
+        intersects.push(x1 + (y - y1) / (y2 - y1) * (x2 - x1));
+      }
+    }
+    intersects.sort((a,b) => a-b);
+    for (let j = 0; j < intersects.length-1; j+=2) {
+      const x0 = Math.max(0, Math.floor(intersects[j]));
+      const x1 = Math.min(W-1, Math.ceil(intersects[j+1]));
+      for (let x = x0; x <= x1; x++) img.alpha[y*W+x] = applyVal;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// WIRE UP NEW TOOL OPTIONS
+// ═══════════════════════════════════════════════════════════
+$('ctol').addEventListener('input', function(){ colorSel.tol=+this.value; $('ctolv').textContent=this.value; });
+[$('cs-erase'), $('cs-restore')].forEach(b => b.addEventListener('click', () => {
+  colorSel.eraseMode = b.id === 'cs-erase';
+  $('cs-erase').classList.toggle('on', colorSel.eraseMode);
+  $('cs-restore').classList.toggle('on', !colorSel.eraseMode);
+}));
+$('hsize').addEventListener('input', function(){ hairBrush.size=+this.value; $('hszv').textContent=this.value; });
+$('hedge').addEventListener('input', function(){ hairBrush.edgeThresh=+this.value; $('hedgev').textContent=this.value; });
+[$('hr-erase'), $('hr-restore')].forEach(b => b.addEventListener('click', () => {
+  hairBrush.eraseMode = b.id === 'hr-erase';
+  $('hr-erase').classList.toggle('on', hairBrush.eraseMode);
+  $('hr-restore').classList.toggle('on', !hairBrush.eraseMode);
+}));
+[$('lo-erase'), $('lo-restore')].forEach(b => b.addEventListener('click', () => {
+  lasso.eraseMode = b.id === 'lo-erase';
+  $('lo-erase').classList.toggle('on', lasso.eraseMode);
+  $('lo-restore').classList.toggle('on', !lasso.eraseMode);
+}));
+
+window.addEventListener('mouseup', e => { if (painting && e.button === 0) { painting = false; lastPx = null; lastPy = null; refreshThumb(S.sel); } });
+
+// ═══════════════════════════════════════════════════════════
+// OVERRIDE setTool to handle new tools
+// ═══════════════════════════════════════════════════════════
+const _origSetTool = setTool;
+setTool = function(t) {
+  // Cancel active lasso when switching away
+  if (S.tool === 'lasso' && t !== 'lasso') {
+    lasso.active = false; lasso.points = [];
+    lassoCtx.clearRect(0, 0, lassoCv.width, lassoCv.height);
+  }
+  S.tool = t;
+  document.querySelectorAll('#toolgrp .tt').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  const showBrush = t === 'restore' || t === 'erase';
+  $('brush-opts').style.display = showBrush ? 'flex' : 'none';
+  $('wand-opts').classList.toggle('vis', t === 'wand');
+  const lassoOpts = $('lasso-opts'); if (lassoOpts) lassoOpts.style.display = t === 'lasso' ? 'flex' : 'none';
+  const colorOpts = $('colorsel-opts'); if (colorOpts) colorOpts.style.display = t === 'colorsel' ? 'flex' : 'none';
+  const hairOpts = $('hair-opts'); if (hairOpts) hairOpts.style.display = t === 'hair' ? 'flex' : 'none';
+  const badge = $('edgeBadge'); if (badge) badge.style.display = t === 'hair' ? 'block' : 'none';
+  const cw = $('cw');
+  if (t === 'pan') cw.style.cursor = 'grab';
+  else if (t === 'wand' || t === 'colorsel') cw.style.cursor = 'crosshair';
+  else if (t === 'lasso') cw.style.cursor = 'crosshair';
+  else cw.style.cursor = 'none';
+};
+
+// Re-wire tool buttons with new setTool
+document.querySelectorAll('#toolgrp .tt').forEach(b => {
+  b.onclick = () => setTool(b.dataset.tool);
+});
+
+// ═══════════════════════════════════════════════════════════
+// PATCH MOUSEDOWN for new tools
+// ═══════════════════════════════════════════════════════════
+$('cw').addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const img = S.imgs.find(i => i.id === S.sel); if (!img || !img.alpha) return;
+  const r = $('cw').getBoundingClientRect();
+  const vx = e.clientX - r.left, vy = e.clientY - r.top;
+  const coords = vpToImg(vx, vy); if (!coords) return;
+  const [ix, iy] = coords;
+
+  if (S.tool === 'colorsel') {
+    if (ix < 0 || ix >= img.W || iy < 0 || iy >= img.H) return;
+    pushUndo(S.sel);
+    colorSelectApply(img.rawImgData, img.alpha, img.W, img.H, ix, iy, colorSel.tol, colorSel.eraseMode);
+    drawCanvas(); refreshThumb(S.sel);
+    return;
+  }
+
+  if (S.tool === 'lasso') {
+    if (ix < 0 || ix >= img.W || iy < 0 || iy >= img.H) return;
+    if (!lasso.active) { lasso.active = true; lasso.points = []; }
+    // Check close (double-click or near first point)
+    if (lasso.points.length > 2) {
+      const [fx, fy] = lasso.points[0];
+      const [fvx, fvy] = imgToVP(fx, fy);
+      const dist = Math.hypot(vx - fvx, vy - fvy);
+      if (dist < 12) {
+        pushUndo(S.sel);
+        lassoFill(img);
+        lasso.active = false; lasso.points = [];
+        lassoCtx.clearRect(0, 0, lassoCv.width, lassoCv.height);
+        drawCanvas(); refreshThumb(S.sel);
+        toast('Lasso applied · Ctrl+Z to undo');
+        return;
+      }
+    }
+    lasso.points.push([ix, iy]);
+    drawLassoOverlay(vx, vy);
+    return;
+  }
+
+  if (S.tool === 'hair') {
+    pushUndo(S.sel);
+    painting = true; lastPx = null; lastPy = null;
+    e.preventDefault(); return;
+  }
+}, true); // capture phase to run BEFORE existing handler
+
+// ═══════════════════════════════════════════════════════════
+// PATCH MOUSEMOVE for lasso preview + hair brush
+// ═══════════════════════════════════════════════════════════
+$('cw').addEventListener('mousemove', e => {
+  const r = $('cw').getBoundingClientRect();
+  const vx = e.clientX - r.left, vy = e.clientY - r.top;
+
+  if (S.tool === 'lasso') {
+    drawLassoOverlay(vx, vy);
+    return;
+  }
+
+  if (S.tool === 'hair' && painting) {
+    const img = S.imgs.find(i => i.id === S.sel); if (!img || !img.alpha) return;
+    const coords = vpToImg(vx, vy); if (!coords) return;
+    const [ix, iy] = coords;
+    const br = (hairBrush.size / 2) / vp.scale;
+    if (lastPx !== null) {
+      const dist = Math.hypot(ix - lastPx, iy - lastPy);
+      const steps = Math.max(1, Math.ceil(dist / (br * 0.2)));
+      for (let s = 1; s <= steps; s++) {
+        paintHairBrush(img, lastPx+(ix-lastPx)*s/steps, lastPy+(iy-lastPy)*s/steps, br, hairBrush.edgeThresh, hairBrush.eraseMode);
+      }
+    } else paintHairBrush(img, ix, iy, br, hairBrush.edgeThresh, hairBrush.eraseMode);
+    lastPx = ix; lastPy = iy;
+    drawCanvas();
+  }
+}, true);
+
+// Double-click to close lasso
+$('cw').addEventListener('dblclick', e => {
+  if (S.tool !== 'lasso' || !lasso.active || lasso.points.length < 3) return;
+  const img = S.imgs.find(i => i.id === S.sel); if (!img || !img.alpha) return;
+  pushUndo(S.sel);
+  lassoFill(img);
+  lasso.active = false; lasso.points = [];
+  lassoCtx.clearRect(0, 0, lassoCv.width, lassoCv.height);
+  drawCanvas(); refreshThumb(S.sel);
+  toast('Lasso applied · Ctrl+Z to undo');
+});
+
+// Invalidate edge cache on new image selection
+const _origSelImg = selImg;
+selImg = function(id) { cachedEdgeId = null; _origSelImg(id); };
+
+window.addEventListener('resize', () => { if(S.sel) fitToView(); resizeBrushCv(); resizeLassoCv(); });
+
+
+</script>
+</body>
+</html>
